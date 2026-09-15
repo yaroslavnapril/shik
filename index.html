@@ -281,6 +281,11 @@
                 Настройки проекта
             </button>
 
+            <button class="nav-item" style="color: var(--text-muted); font-size: 12px;" onclick="logout()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></svg>
+                Выйти из аккаунта
+            </button>
+
             <input type="file" id="import-json-input" style="display:none" onchange="importData(event)">
             <button class="nav-item" style="color: var(--text-muted); font-size: 12px;" onclick="document.getElementById('import-json-input').click()">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
@@ -559,9 +564,57 @@
         </div>
     </div>
 
+    <div id="cloud-gate" style="display:none; position:fixed; inset:0; z-index:2000; background:var(--bg-base); align-items:flex-start; justify-content:center; overflow-y:auto;">
+        <div style="width:100%; max-width:400px; padding:40px 20px;">
+            <div style="text-align:center; margin-bottom:24px;">
+                <div style="display:inline-flex; width:56px; height:56px; border-radius:14px; background:var(--accent); align-items:center; justify-content:center; color:#fff; font-weight:800; font-size:24px;">S</div>
+                <div style="font-size:22px; font-weight:800; margin-top:12px; letter-spacing:-0.5px;">SHIK OS</div>
+                <div style="font-size:12px; color:var(--text-muted); margin-top:4px;">Облачная платформа управления проектами</div>
+            </div>
+
+            <div id="gate-setup" style="display:none; background:var(--bg-surface); border:1px solid var(--border-subtle); border-radius:16px; padding:24px;">
+                <div style="font-size:16px; font-weight:700; margin-bottom:6px;">Подключение к Supabase</div>
+                <div style="color:var(--text-muted); font-size:13px; margin-bottom:16px; line-height:1.5;">Введите Project URL и anon public key из вашего проекта Supabase (раздел <b>Settings → API</b>).</div>
+                <div class="form-group" style="margin-bottom:12px;">
+                    <label>Project URL</label>
+                    <input type="text" id="cfg-url" placeholder="https://xxxx.supabase.co" autocomplete="off">
+                </div>
+                <div class="form-group" style="margin-bottom:16px;">
+                    <label>Anon public key</label>
+                    <input type="text" id="cfg-key" placeholder="eyJhbGciOi..." autocomplete="off">
+                </div>
+                <button class="primary-btn" style="width:100%;" onclick="saveCloudConfig()">Подключить</button>
+                <div id="cfg-error" style="color:var(--danger); font-size:12px; margin-top:10px; line-height:1.4;"></div>
+            </div>
+
+            <div id="gate-auth" style="display:none; background:var(--bg-surface); border:1px solid var(--border-subtle); border-radius:16px; padding:24px;">
+                <div style="font-size:16px; font-weight:700; margin-bottom:6px;">Вход в аккаунт</div>
+                <div style="color:var(--text-muted); font-size:13px; margin-bottom:16px; line-height:1.5;">Ваши данные привязаны к аккаунту и синхронизируются на всех устройствах.</div>
+                <div class="form-group" style="margin-bottom:12px;">
+                    <label>Email</label>
+                    <input type="email" id="auth-email" placeholder="you@example.com" autocomplete="email">
+                </div>
+                <div class="form-group" style="margin-bottom:16px;">
+                    <label>Пароль</label>
+                    <input type="password" id="auth-pass" placeholder="Минимум 6 символов" autocomplete="current-password">
+                </div>
+                <button class="primary-btn" style="width:100%; margin-bottom:10px;" onclick="doLogin()">Войти</button>
+                <button class="filter-btn" style="width:100%;" onclick="doRegister()">Создать аккаунт</button>
+                <div id="auth-error" style="color:var(--danger); font-size:12px; margin-top:10px; line-height:1.4;"></div>
+            </div>
+
+            <div id="gate-loading" style="display:none; text-align:center; padding:40px 0; color:var(--text-muted); font-size:14px;">
+                <div style="width:32px; height:32px; border:3px solid var(--border-subtle); border-top-color:var(--accent); border-radius:50%; margin:0 auto 14px; animation:gateSpin 0.8s linear infinite;"></div>
+                Загрузка...
+            </div>
+            <style>@keyframes gateSpin { to { transform: rotate(360deg); } }</style>
+        </div>
+    </div>
+
     <div id="toast-container"></div>
 
-    <script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
         // === ПЕРЕМЕННЫЕ И ДАННЫЕ ===
         let hasUnsavedChanges = false;
         let isSharedMode = false;
@@ -584,35 +637,30 @@
             "blocks": []
         };
 
-        // Безопасная загрузка данных (защита от сбоев localStorage)
-        let state;
-        try {
-            state = JSON.parse(localStorage.getItem('shik_os_data'));
-        } catch (e) {
-            state = null;
-        }
-        
-        if (!state || typeof state !== 'object' || !Array.isArray(state.projects)) {
-            state = {
-                projects: [
-                    {
-                        id: "proj_default",
-                        name: "SHIK Launch",
-                        photo: "",
-                        settings: { goal: "", launchDate: "", risks: "", links: "" },
-                        blocks: []
-                    }
-                ],
-                currentProjectId: "proj_default"
-            };
-            try {
-                localStorage.setItem('shik_os_data', JSON.stringify(state));
-            } catch(e) {
-                console.error("Не удалось сохранить данные", e);
-            }
-        }
+        // === ОБЛАЧНОЕ ХРАНИЛИЩЕ (SUPABASE) ===
+        // Данные хранятся в облаке и синхронизируются между всеми устройствами.
+        // localStorage используется только как локальное зеркало и для настроек/темы.
+        let state = null;
+        let supabaseClient = null;
+        let currentUser = null;
+        let remoteSaveTimer = null;
+        let cloudReady = false;
+
+        const DEFAULT_STATE = {
+            projects: [
+                {
+                    id: "proj_default",
+                    name: "SHIK Launch",
+                    photo: "",
+                    settings: { goal: "", launchDate: "", risks: "", links: "" },
+                    blocks: []
+                }
+            ],
+            currentProjectId: "proj_default"
+        };
 
         function getCurrentProject() {
+            if (!state) state = JSON.parse(JSON.stringify(DEFAULT_STATE));
             if (!Array.isArray(state.projects)) state.projects = [];
             let p = state.projects.find(proj => proj.id === state.currentProjectId);
             if (!p) {
@@ -953,6 +1001,7 @@
                 console.error("Ошибка сохранения", e);
                 showToast("Не удалось сохранить (возможно, переполнено хранилище)", "danger");
             }
+            scheduleRemoteSave();
             calcStats();
             if(document.getElementById('view-analytics').classList.contains('active')) renderChart();
         }
@@ -1818,6 +1867,7 @@
                     const data = JSON.parse(text);
                     if (data && Array.isArray(data.projects)) {
                         localStorage.setItem('shik_os_data', JSON.stringify(data));
+                        try { state = data; pushToCloud(); } catch(e) {}
                         showToast('Данные загружены! Перезагрузка...', 'success');
                         setTimeout(() => location.reload(), 1500);
                     } else {
@@ -1835,8 +1885,136 @@
             input.value = ''; 
         }
 
+        // === ОБЛАЧНАЯ СИНХРОНИЗАЦИЯ: АВТОРИЗАЦИЯ И ХРАНИЛИЩЕ ===
+        function gateShow(mode) {
+            const gate = document.getElementById('cloud-gate');
+            if (!gate) return;
+            gate.style.display = 'flex';
+            gate.style.alignItems = mode === 'loading' ? 'center' : 'flex-start';
+            document.getElementById('gate-setup').style.display = mode === 'setup' ? 'block' : 'none';
+            document.getElementById('gate-auth').style.display = mode === 'auth' ? 'block' : 'none';
+            document.getElementById('gate-loading').style.display = mode === 'loading' ? 'block' : 'none';
+        }
+
+        function saveCloudConfig() {
+            const url = document.getElementById('cfg-url').value.trim();
+            const key = document.getElementById('cfg-key').value.trim();
+            const err = document.getElementById('cfg-error');
+            err.innerText = '';
+            if (!/^https:\/\/[a-z0-9.-]+\.supabase\.co$/i.test(url)) { err.innerText = 'URL должен выглядеть как https://xxxx.supabase.co'; return; }
+            if (!key.startsWith('eyJ') && !key.startsWith('sb_publishable_')) { err.innerText = 'Похоже, это не anon public key. Скопируйте его: Supabase → Settings → API.'; return; }
+            localStorage.setItem('shik_cloud_config', JSON.stringify({ url, key }));
+            bootstrap();
+        }
+
+        async function bootstrap() {
+            gateShow('loading');
+            let cfg = null;
+            try { cfg = JSON.parse(localStorage.getItem('shik_cloud_config')); } catch (e) {}
+            if (!cfg || !cfg.url || !cfg.key) { gateShow('setup'); return; }
+            try {
+                supabaseClient = window.supabase.createClient(cfg.url, cfg.key);
+            } catch (e) {
+                document.getElementById('cfg-error').innerText = 'Не удалось подключиться: ' + e.message;
+                gateShow('setup');
+                return;
+            }
+            const { data: { session } } = await supabaseClient.auth.getSession();
+            if (session && session.user) {
+                currentUser = session.user;
+                await loadFromCloud();
+                enterApp();
+                return;
+            }
+            gateShow('auth');
+            supabaseClient.auth.onAuthStateChange(async (event, session) => {
+                if (event === 'SIGNED_IN' && session && session.user) {
+                    currentUser = session.user;
+                    await loadFromCloud();
+                    enterApp();
+                }
+                if (event === 'SIGNED_OUT') {
+                    location.reload();
+                }
+            });
+        }
+
+        async function doLogin() {
+            const email = document.getElementById('auth-email').value.trim();
+            const pass = document.getElementById('auth-pass').value;
+            const err = document.getElementById('auth-error');
+            err.innerText = '';
+            if (!email || !pass) { err.innerText = 'Введите email и пароль'; return; }
+            const { error } = await supabaseClient.auth.signInWithPassword({ email, password: pass });
+            if (error) err.innerText = error.message;
+        }
+
+        async function doRegister() {
+            const email = document.getElementById('auth-email').value.trim();
+            const pass = document.getElementById('auth-pass').value;
+            const err = document.getElementById('auth-error');
+            err.innerText = '';
+            if (!email || !pass) { err.innerText = 'Введите email и пароль'; return; }
+            if (pass.length < 6) { err.innerText = 'Пароль должен быть минимум 6 символов'; return; }
+            const { data, error } = await supabaseClient.auth.signUp({ email, password: pass });
+            if (error) { err.innerText = error.message; return; }
+            if (!data.session) err.innerText = 'Аккаунт создан. Подтвердите email по ссылке в письме, затем войдите.';
+        }
+
+        async function logout() {
+            if (hasUnsavedChanges && !confirm('Есть несохранённые изменения документа. Выйти из аккаунта?')) return;
+            if (supabaseClient) await supabaseClient.auth.signOut();
+            else location.reload();
+        }
+
+        async function loadFromCloud() {
+            const { data, error } = await supabaseClient
+                .from('user_data')
+                .select('data')
+                .eq('user_id', currentUser.id)
+                .maybeSingle();
+            if (error) {
+                console.error('Cloud load error:', error);
+                showToast('Ошибка загрузки из облака: ' + error.message, 'danger');
+            }
+            if (data && data.data && Array.isArray(data.data.projects)) {
+                state = data.data;
+            } else {
+                // Первая загрузка: переносим локальные данные (миграция с компьютера), если они есть
+                let local = null;
+                try { local = JSON.parse(localStorage.getItem('shik_os_data')); } catch (e) {}
+                state = (local && Array.isArray(local.projects)) ? local : JSON.parse(JSON.stringify(DEFAULT_STATE));
+                await pushToCloud();
+            }
+            try { localStorage.setItem('shik_os_data', JSON.stringify(state)); } catch (e) {}
+        }
+
+        async function pushToCloud() {
+            if (!supabaseClient || !currentUser || !state) return;
+            const { error } = await supabaseClient.from('user_data').upsert({
+                user_id: currentUser.id,
+                data: state,
+                updated_at: new Date().toISOString()
+            });
+            if (error) console.error('Cloud save error:', error);
+        }
+
+        function scheduleRemoteSave() {
+            if (!cloudReady) return;
+            clearTimeout(remoteSaveTimer);
+            remoteSaveTimer = setTimeout(pushToCloud, 1200);
+        }
+
+        function enterApp() {
+            const gate = document.getElementById('cloud-gate');
+            if (gate) gate.style.display = 'none';
+            cloudReady = true;
+            init();
+            showToast('Данные синхронизированы с облаком ☁️', 'success');
+        }
+
         // Запуск системы
-        window.addEventListener('DOMContentLoaded', init);
+        window.addEventListener('DOMContentLoaded', bootstrap);
     </script>
 </body>
 </html>
