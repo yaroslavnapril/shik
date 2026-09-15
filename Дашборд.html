@@ -1,0 +1,1842 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SHIK OS Platform</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+
+        :root {
+            --bg-base: #0e0f11; --bg-surface: #17181b; --bg-surface-hover: #212226;
+            --border-subtle: #27282b; --border-focus: #3f4147; --text-main: #e6e8eb; --text-muted: #8b909a;
+            --accent: #5e6ad2; --accent-hover: #737fe6; --success: #2ea043; --warning: #d29922;
+            --high-prio: #f97316; --danger: #f85149; --critical: #ff3333;
+            --radius-sm: 6px; --radius-md: 10px; --radius-lg: 16px; --transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1); --sidebar-width: 250px;
+        }
+        [data-theme="light"] {
+            --bg-base: #f3f4f6; --bg-surface: #ffffff; --bg-surface-hover: #f9fafb;
+            --border-subtle: #e5e7eb; --border-focus: #d1d5db; --text-main: #111827; --text-muted: #6b7280;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
+        body, #sidebar, .view-container, .stat-card, .block-card, .block-header, .block-body, .task-item, .analytic-card, input, textarea, select, .toast, .chart-tooltip { transition: background-color 0.4s ease, border-color 0.4s ease, color 0.4s ease; }
+        body { background-color: var(--bg-base); color: var(--text-main); display: flex; height: 100vh; overflow: hidden; font-size: 14px; position: relative; }
+        ::-webkit-scrollbar { width: 8px; height: 8px; } ::-webkit-scrollbar-track { background: transparent; } ::-webkit-scrollbar-thumb { background: var(--border-subtle); border-radius: 4px; } ::-webkit-scrollbar-thumb:hover { background: var(--border-focus); }
+        button { cursor: pointer; border: none; background: transparent; color: inherit; font-family: inherit; transition: var(--transition); }
+        input, textarea, select { background: var(--bg-surface); border: 1px solid var(--border-subtle); color: var(--text-main); border-radius: var(--radius-sm); padding: 8px 12px; font-family: inherit; outline: none; transition: var(--transition); }
+        select option { background-color: var(--bg-surface); color: var(--text-main); }
+        textarea { resize: vertical; max-width: 100%; width: 100%; box-sizing: border-box; }
+        input:focus, textarea:focus, select:focus { border-color: var(--accent); }
+
+        .theme-switch-wrapper { position: absolute; top: 24px; right: 40px; z-index: 1000; cursor: pointer; user-select: none; -webkit-tap-highlight-color: transparent; }
+        .theme-switch-track { width: 86px; height: 36px; border-radius: 20px; background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); box-shadow: inset 0 2px 5px rgba(0,0,0,0.2), 0 4px 15px rgba(0,0,0,0.2); display: flex; align-items: center; position: relative; padding: 0 4px; transition: background 0.4s, border-color 0.4s; }
+        .theme-switch-thumb { width: 28px; height: 28px; border-radius: 50%; background: radial-gradient(circle at 30% 30%, #e2e8f0, #94a3b8); box-shadow: inset -3px -2px 6px rgba(0,0,0,0.4), 0 2px 6px rgba(0,0,0,0.5); position: absolute; left: 4px; transition: transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1), background 0.4s, box-shadow 0.4s; display: flex; justify-content: center; align-items: center; }
+        .theme-switch-label { margin-left: 36px; font-size: 13px; font-weight: 700; color: #94a3b8; transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1); }
+        [data-theme="light"] .theme-switch-track { background: rgba(0, 0, 0, 0.05); border: 1px solid rgba(0, 0, 0, 0.1); box-shadow: inset 0 2px 5px rgba(0,0,0,0.05), 0 4px 15px rgba(0,0,0,0.05); }
+        [data-theme="light"] .theme-switch-thumb { transform: translateX(50px); background: radial-gradient(circle at 30% 30%, #fde047, #f59e0b); box-shadow: 0 0 12px rgba(245, 158, 11, 0.6), inset 0 2px 4px rgba(255,255,255,0.8); }
+        [data-theme="light"] .theme-switch-label { margin-left: 12px; color: #d97706; }
+
+        #sidebar { width: var(--sidebar-width); background: var(--bg-surface); border-right: 1px solid var(--border-subtle); display: flex; flex-direction: column; padding: 20px 12px; z-index: 100; transition: transform 0.3s ease, background-color 0.4s ease, border-color 0.4s ease; position: relative; }
+        #main-content { flex: 1; display: flex; flex-direction: column; overflow-y: auto; overflow-x: hidden; scroll-behavior: smooth; position: relative; }
+        @keyframes viewFadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        .view-container { padding: 40px; display: none; max-width: 1200px; margin: 0 auto; width: 100%; animation: viewFadeIn 0.35s cubic-bezier(0.25, 0.8, 0.25, 1) forwards; }
+        .view-container.active { display: block; }
+
+        .brand-selector { position: relative; display: flex; align-items: center; justify-content: center; gap: 10px; padding: 10px; margin-bottom: 24px; border-radius: var(--radius-md); cursor: pointer; transition: background 0.2s; border: 1px solid transparent; }
+        .brand-selector:hover { background: var(--bg-surface-hover); border-color: var(--border-subtle); }
+        .brand-logo-wrap { width: 36px; height: 36px; border-radius: 8px; overflow: hidden; background: var(--accent); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .brand-logo-wrap img { width: 100%; height: 100%; object-fit: cover; }
+        .brand-logo-text { color: #fff; font-weight: 800; font-size: 16px; text-transform: uppercase; }
+        .brand-info { flex: 1; overflow: hidden; display: flex; align-items: center; }
+        .brand-name { font-weight: 800; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text-main); }
+        .project-dropdown { position: absolute; top: calc(100% + 4px); left: 12px; width: calc(100% - 24px); background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); box-shadow: 0 10px 30px rgba(0,0,0,0.3); z-index: 200; display: none; flex-direction: column; overflow: hidden; }
+        .project-dropdown.active { display: flex; animation: viewFadeIn 0.2s ease forwards; }
+        .project-list { max-height: 250px; overflow-y: auto; }
+        .project-item { padding: 10px 12px; display: flex; align-items: center; gap: 10px; cursor: pointer; border-bottom: 1px solid var(--border-subtle); transition: background 0.2s; }
+        .project-item:hover { background: var(--bg-surface-hover); }
+        .project-item.active { background: rgba(94, 106, 210, 0.1); }
+        .project-item-logo { width: 24px; height: 24px; border-radius: 4px; background: var(--accent); display: flex; align-items: center; justify-content: center; font-size: 10px; color: #fff; font-weight: 800; overflow: hidden; }
+        .project-item-logo img { width: 100%; height: 100%; object-fit: cover; }
+        .project-item-name { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; }
+        .project-dropdown-btn { padding: 12px; text-align: center; font-size: 12px; font-weight: 600; color: var(--accent); cursor: pointer; background: var(--bg-surface-hover); transition: 0.2s; }
+        .project-dropdown-btn:hover { background: var(--accent); color: #fff; }
+
+        .nav-item { position: relative; display: flex; align-items: center; gap: 12px; padding: 10px 16px; margin-bottom: 6px; border-radius: var(--radius-md); color: var(--text-muted); font-weight: 500; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); border: 1px solid transparent; z-index: 1; overflow: hidden; }
+        .nav-item::before { content: ''; position: absolute; left: 0; top: 50%; transform: translateY(-50%); height: 0%; width: 3px; background: var(--accent); border-radius: 0 4px 4px 0; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); opacity: 0; box-shadow: 0 0 12px var(--accent); z-index: 2; }
+        .nav-item::after { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, rgba(94,106,210,0.15) 0%, rgba(94,106,210,0) 100%); opacity: 0; transition: opacity 0.3s ease; z-index: -1; }
+        .nav-item:hover { color: var(--text-main); background: var(--bg-surface-hover); transform: translateX(4px); }
+        .nav-item.active { color: var(--accent); transform: translateX(4px); border-color: rgba(94, 106, 210, 0.15); background: var(--bg-surface-hover); box-shadow: 0 4px 12px rgba(0,0,0,0.05), inset 0 1px 0 rgba(255,255,255,0.02); }
+        .nav-item.active::before { height: 60%; opacity: 1; }
+        .nav-item.active::after { opacity: 1; }
+        .nav-item svg { width: 16px; height: 16px; position: relative; z-index: 2; }
+        .sidebar-bottom { margin-top: auto; padding-top: 20px; border-top: 1px solid var(--border-subtle); }
+
+        .top-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 40px; gap: 16px; padding-top: 20px; }
+        .page-title { font-size: 28px; font-weight: 800; letter-spacing: -1px; margin-bottom: 8px; }
+        .breadcrumbs { font-size: 12px; color: var(--text-muted); }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 40px; }
+        .stat-card { background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 20px; display: flex; align-items: center; gap: 16px; transition: transform 0.2s ease, box-shadow 0.2s ease; }
+        .stat-card:hover { transform: translateY(-3px); box-shadow: 0 6px 12px rgba(0,0,0,0.05); }
+        .stat-info h4 { color: var(--text-muted); font-size: 12px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; font-weight: 600; }
+        .stat-info .value { font-size: 24px; font-weight: 800; }
+        .blocks-container { display: flex; flex-direction: column; gap: 24px; }
+        
+        .block-card { background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); transition: box-shadow 0.2s ease, background-color 0.4s ease, border-color 0.4s ease; }
+        .block-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.05); }
+        .block-card.dragging { opacity: 0.4; transform: scale(0.98); border: 1px dashed var(--accent); }
+        .block-card.over { border-top: 3px solid var(--accent); }
+        .drag-handle { cursor: grab; color: var(--border-focus); margin-right: 8px; display: flex; align-items: center; justify-content: center; transition: color 0.2s; }
+        .drag-handle:hover { color: var(--text-main); }
+        .drag-handle:active { cursor: grabbing; }
+        .block-header { padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; border-bottom: 1px solid transparent; transition: background 0.2s ease, border-radius 0.2s ease; border-radius: calc(var(--radius-md) - 1px); position: relative; z-index: 2; }
+        .block-header:hover { background: var(--bg-surface-hover); }
+        .block-card.open .block-header { border-bottom-color: var(--border-subtle); border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+        .block-title-area { display: flex; align-items: center; gap: 12px; }
+        .block-icon { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; color: #fff; flex-shrink: 0; background-position: center !important; background-size: cover !important; }
+        .block-title { font-weight: 600; font-size: 16px; }
+        .block-meta { font-size: 12px; color: var(--text-muted); display: flex; align-items: center; gap: 12px; }
+        .progress-bar-bg { width: 100px; height: 6px; background: var(--border-subtle); border-radius: 3px; overflow: hidden; }
+        .progress-bar-fill { height: 100%; transition: width 0.5s ease; }
+        .block-body-wrapper { display: grid; grid-template-rows: 0fr; border-radius: 0 0 calc(var(--radius-md) - 1px) calc(var(--radius-md) - 1px); position: relative; z-index: 1; overflow: hidden; transition: grid-template-rows 0.35s cubic-bezier(0.4, 0, 0.2, 1), overflow 0s 0s; }
+        .block-card.open .block-body-wrapper { grid-template-rows: 1fr; overflow: visible; transition: grid-template-rows 0.35s cubic-bezier(0.4, 0, 0.2, 1), overflow 0s 0.35s; }
+        .block-body { min-height: 0; padding: 0; background: var(--bg-base); border-radius: 0 0 calc(var(--radius-md) - 1px) calc(var(--radius-md) - 1px); opacity: 0; transition: opacity 0.2s ease; }
+        .block-card.open .block-body { opacity: 1; transition: opacity 0.3s ease 0.15s; }
+        .block-header svg.chevron { transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); color: var(--text-muted); }
+        .block-card.open .block-header svg.chevron { transform: rotate(180deg); }
+
+        .task-item { display: flex; align-items: center; padding: 12px 20px; border-bottom: 1px solid var(--border-subtle); gap: 12px; background: var(--bg-base); transition: background-color 0.2s ease; position: relative; z-index: 1; }
+        .task-item:hover { background: var(--bg-surface); z-index: 10; }
+        .task-item:last-child { border-bottom: none; border-radius: 0 0 calc(var(--radius-md) - 1px) calc(var(--radius-md) - 1px); }
+        .task-item.completed { opacity: 0.5; }
+        .task-item.completed .task-name { text-decoration: line-through; }
+        .checkbox { width: 18px; height: 18px; border: 2px solid var(--border-focus); border-radius: 4px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; flex-shrink: 0; }
+        .checkbox:hover { border-color: var(--accent); transform: scale(1.1); }
+        .checkbox:active { transform: scale(0.9); }
+        .task-item.completed .checkbox { background: var(--success); border-color: var(--success); }
+        .checkbox svg { width: 12px; height: 12px; color: #fff; opacity: 0; transition: opacity 0.2s, transform 0.2s; transform: scale(0.5); }
+        .task-item.completed .checkbox svg { opacity: 1; transform: scale(1); }
+        .task-content { flex: 1; display: flex; flex-direction: column; justify-content: center; }
+        .task-name { font-weight: 500; margin-bottom: 4px; transition: var(--transition); }
+        .task-photo-thumb { width: 36px; height: 36px; border-radius: 6px; object-fit: cover; border: 1px solid var(--border-subtle); flex-shrink: 0; margin-right: 8px; }
+        .task-badges { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; align-items: center; }
+        .badge { padding: 2px 8px; border-radius: 12px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+        .badge-date { background: var(--bg-surface-hover); color: var(--text-muted); border: 1px solid var(--border-subtle); }
+        .badge-date.overdue { background: rgba(248, 81, 73, 0.1); color: var(--danger); border-color: var(--danger); }
+        .flag-tooltip { position: relative; display: inline-flex; align-items: center; cursor: pointer; transition: transform 0.2s; }
+        .flag-tooltip:hover { transform: scale(1.15); }
+        .flag-tooltip::after { content: attr(data-tooltip); position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%); background: var(--bg-surface-hover); color: var(--text-main); padding: 4px 8px; border-radius: var(--radius-sm); font-size: 11px; font-weight: 600; white-space: nowrap; border: 1px solid var(--border-subtle); box-shadow: 0 4px 12px rgba(0,0,0,0.2); z-index: 9999; pointer-events: none; display: none; }
+        .flag-tooltip:hover::after { display: block; }
+        .task-actions { opacity: 0; display: flex; gap: 8px; transition: opacity 0.2s; }
+        .task-item:hover .task-actions { opacity: 1; }
+        .icon-btn { color: var(--text-muted); padding: 6px; border-radius: 6px; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
+        .icon-btn:hover { background: var(--border-subtle); color: var(--text-main); }
+        .icon-btn:active, .primary-btn:active, .filter-btn:active { transform: scale(0.96); }
+
+        .controls-bar { display: flex; justify-content: space-between; margin-bottom: 24px; background: var(--bg-surface); padding: 12px 16px; border-radius: var(--radius-md); border: 1px solid var(--border-subtle); gap: 16px; }
+        .search-box { display: flex; align-items: center; gap: 8px; flex: 1; max-width: 300px; background: var(--bg-base); border: 1px solid var(--border-focus); padding: 6px 12px; border-radius: var(--radius-sm); transition: border-color 0.2s; }
+        .search-box:focus-within { border-color: var(--accent); }
+        .search-box input { border: none; background: transparent; padding: 0; width: 100%; }
+        .filters { display: flex; gap: 8px; }
+        .filter-btn { padding: 6px 12px; border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); font-size: 12px; font-weight: 500; transition: all 0.2s; }
+        .filter-btn:hover { border-color: var(--border-focus); background: var(--bg-surface-hover); }
+        .filter-btn.active { background: var(--text-main); color: var(--bg-base); border-color: var(--text-main); }
+        .primary-btn { background: var(--accent); color: #fff; padding: 8px 16px; border-radius: var(--radius-sm); font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 8px; border: 1px solid transparent; transition: all 0.2s; }
+        .primary-btn:hover { background: var(--accent-hover); box-shadow: 0 4px 10px rgba(94, 106, 210, 0.25); }
+
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); display: none; align-items: center; justify-content: center; z-index: 1000; opacity: 0; transition: opacity 0.3s ease; }
+        .modal-overlay.active { display: flex; opacity: 1; }
+        .modal { background: var(--bg-surface); width: 100%; max-width: 540px; border-radius: var(--radius-lg); border: 1px solid var(--border-subtle); box-shadow: 0 20px 40px rgba(0,0,0,0.4); transform: scale(0.95) translateY(10px); transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1); display: flex; flex-direction: column; max-height: 90vh; }
+        .modal-overlay.active .modal { transform: scale(1) translateY(0); }
+        .modal-header { padding: 20px; border-bottom: 1px solid var(--border-subtle); display: flex; justify-content: space-between; align-items: center; }
+        .modal-header h3 { font-size: 18px; }
+        .modal-body { padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; }
+        .modal-footer { padding: 20px; border-top: 1px solid var(--border-subtle); display: flex; justify-content: space-between; gap: 12px; }
+        .form-group { display: flex; flex-direction: column; gap: 6px; }
+        .form-group label { font-size: 12px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+        .color-picker { display: flex; gap: 8px; }
+        .color-dot { width: 24px; height: 24px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; transition: transform 0.2s; }
+        .color-dot:hover { transform: scale(1.15); }
+        .color-dot.active { border-color: var(--text-main); transform: scale(1.15); }
+        .photo-upload-wrap { display: flex; align-items: center; gap: 12px; }
+        .photo-btn { padding: 8px 12px; border: 1px solid var(--border-focus); border-radius: var(--radius-sm); font-size: 12px; cursor: pointer; background: var(--bg-surface-hover); color: var(--text-main); transition: 0.2s; }
+        .photo-btn:hover { border-color: var(--text-main); }
+        .photo-preview { width: 40px; height: 40px; border-radius: 8px; object-fit: cover; display: none; border: 1px solid var(--border-subtle); }
+        .photo-remove { color: var(--danger); font-size: 12px; cursor: pointer; display: none; background: transparent; border: none; font-weight: 600; }
+        #t-desc.expanded { min-height: 300px !important; }
+
+        .workspace-editor-container { background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); display: flex; flex-direction: column; min-height: 60vh; margin-bottom: 40px; overflow: hidden; transition: border-color 0.2s, box-shadow 0.2s; position: relative;}
+        .workspace-editor-container:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(94, 106, 210, 0.1); }
+        .editor-toolbar { padding: 12px 16px; border-bottom: 1px solid var(--border-subtle); display: flex; gap: 8px; flex-wrap: wrap; background: var(--bg-surface-hover); align-items: center;}
+        .editor-toolbar .icon-btn { background: var(--bg-base); border: 1px solid var(--border-subtle); height: 34px; padding: 0 10px; border-radius: var(--radius-sm); color: var(--text-main); transition: 0.2s; font-size: 12px; font-weight: 600; }
+        .editor-toolbar .icon-btn:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+        .editor-area { flex: 1; padding: 24px; overflow-y: auto; outline: none; line-height: 1.6; font-size: 15px; background-color: var(--bg-surface); color: var(--text-main); transition: background-color 0.4s, color 0.4s; position: relative; }
+        .editor-area table { border-collapse: collapse; width: 100%; margin: 16px 0; border: 1px solid var(--border-subtle); }
+        .editor-area th, .editor-area td { border: 1px solid var(--border-subtle); padding: 8px 12px; min-width: 40px; text-align: left; }
+        .editor-area th { background: var(--bg-surface-hover); font-weight: 600; }
+        .editor-area img { max-width: 100%; border-radius: 8px; margin: 10px auto; border: 1px solid var(--border-subtle); display: block; transition: filter 0.2s, outline 0.1s; cursor: pointer; -webkit-user-drag: none; }
+        .editor-area img:hover { filter: brightness(0.9); outline: 2px dashed var(--accent); }
+        .editor-area img.resizing-active { opacity: 0.8; outline: 2px solid var(--accent); }
+        .img-resizer-overlay { position: absolute; pointer-events: none; border: 2px solid var(--accent); z-index: 50; display: none; box-shadow: 0 0 0 2px rgba(255,255,255,0.2); }
+        .img-resizer-handle { position: absolute; bottom: -6px; right: -6px; width: 14px; height: 14px; background: var(--accent); border: 2px solid #fff; border-radius: 50%; cursor: nwse-resize; pointer-events: all; box-shadow: 0 2px 4px rgba(0,0,0,0.3); transition: transform 0.1s; }
+        .img-resizer-handle:hover { transform: scale(1.2); }
+        .editor-area a { color: var(--accent); text-decoration: underline; cursor: pointer; }
+        .editor-area[placeholder]:empty:before { content: attr(placeholder); color: var(--text-muted); cursor: text; }
+        .ws-task-meta { background: var(--bg-surface); padding: 16px 20px; border-radius: var(--radius-md); border: 1px solid var(--border-subtle); margin-bottom: 24px; display: flex; flex-direction: column; gap: 8px; }
+        .ws-task-desc { color: var(--text-muted); font-size: 14px; line-height: 1.5; white-space: pre-wrap; word-wrap: break-word; }
+        .ws-task-desc img { max-width: 200px; border-radius: 6px; margin-top: 8px; }
+        #ws-task-title-input { transition: color 0.2s, opacity 0.2s; border-bottom: 1px dashed transparent; }
+        #ws-task-title-input:hover, #ws-task-title-input:focus { border-bottom-color: var(--border-focus); }
+
+        .library-doc { display: flex; align-items: center; justify-content: space-between; padding: 14px 20px; border-bottom: 1px solid var(--border-subtle); transition: background 0.2s, padding 0.2s; background: var(--bg-base); }
+        .library-doc:hover { background: var(--bg-surface); padding-left: 24px; }
+        .library-doc:last-child { border-bottom: none; }
+        .library-doc-info { display: flex; align-items: center; gap: 12px; flex: 1; cursor: pointer; }
+        .library-doc-icon { font-size: 20px; transition: transform 0.2s; }
+        .library-doc:hover .library-doc-icon { transform: scale(1.1) rotate(5deg); }
+        .library-doc-title { font-weight: 600; color: var(--text-main); font-size: 15px; }
+
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px; }
+        .analytic-card { background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 24px; transition: transform 0.2s, box-shadow 0.2s; }
+        .analytic-card:hover { box-shadow: 0 6px 16px rgba(0,0,0,0.05); }
+        .analytic-card h3 { margin-bottom: 16px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 12px; font-size: 16px; }
+        .chart-wrapper { position: relative; width: 100%; height: 260px; margin-top: 20px; }
+        .chart-tooltip { position: absolute; background: var(--bg-surface); border: 1px solid var(--border-subtle); color: var(--text-main); padding: 10px 14px; border-radius: var(--radius-md); font-size: 12px; pointer-events: none; opacity: 0; transform: translate(-50%, -100%) translateY(10px); transition: opacity 0.2s ease, transform 0.2s ease; box-shadow: 0 10px 20px rgba(0,0,0,0.2); z-index: 10; min-width: 140px; }
+        .chart-tooltip.visible { opacity: 1; transform: translate(-50%, calc(-100% - 15px)); }
+
+        #toast-container { position: fixed; bottom: 20px; right: 20px; display: flex; flex-direction: column; gap: 10px; z-index: 9999; }
+        .toast { background: var(--bg-surface); border: 1px solid var(--border-subtle); border-left: 4px solid var(--accent); color: var(--text-main); padding: 16px 20px; border-radius: var(--radius-sm); box-shadow: 0 10px 20px rgba(0,0,0,0.2); animation: slideInRight 0.3s forwards; }
+        .toast.success { border-left-color: var(--success); }
+        .toast.warning { border-left-color: var(--warning); }
+        .toast.danger { border-left-color: var(--danger); }
+        @keyframes slideInRight { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        @keyframes fadeOutRight { to { transform: translateX(100%); opacity: 0; } }
+
+        .mobile-toggle { display: none; background: transparent; border: none; color: var(--text-main); padding: 8px; }
+        @media (max-width: 768px) {
+            body { flex-direction: column; }
+            #sidebar { position: fixed; top: 0; left: -100%; height: 100%; transition: 0.3s, background-color 0.4s ease, border-color 0.4s ease; box-shadow: 20px 0 40px rgba(0,0,0,0.5); }
+            #sidebar.open { left: 0; }
+            .mobile-toggle { display: block; position: fixed; top: 16px; left: 16px; z-index: 101; background: var(--bg-surface); border-radius: var(--radius-sm); border: 1px solid var(--border-subtle); }
+            .view-container { padding: 60px 16px 20px; }
+            .controls-bar { flex-direction: column; }
+            .search-box { max-width: 100%; }
+            .filters { overflow-x: auto; padding-bottom: 4px; }
+            .grid-2 { grid-template-columns: 1fr; }
+            .theme-switch-wrapper { top: 16px; right: 16px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="theme-switch-wrapper" onclick="toggleTheme()" title="Переключить тему">
+        <div class="theme-switch-track">
+            <div class="theme-switch-thumb"></div>
+            <span class="theme-switch-label" id="theme-text">Ночь</span>
+        </div>
+    </div>
+
+    <button class="mobile-toggle" onclick="toggleSidebar()">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
+    </button>
+
+    <nav id="sidebar">
+        <div id="brand-selector" class="brand-selector" onclick="toggleProjectMenu(event)">
+            <div class="brand-logo-wrap">
+                <img id="brand-logo" src="" style="display:none;" />
+                <span id="brand-logo-fallback"></span>
+            </div>
+            <div class="brand-info">
+                <div class="brand-name" id="brand-name">Загрузка...</div>
+            </div>
+            <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="2" style="flex-shrink:0"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            <div id="project-dropdown" class="project-dropdown" onclick="event.stopPropagation()">
+                <div id="project-list" class="project-list"></div>
+                <div class="project-dropdown-btn" onclick="openProjectModal()">+ Создать новый проект</div>
+            </div>
+        </div>
+        
+        <button class="nav-item active" onclick="switchView('dashboard')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+            Дашборд
+        </button>
+        <button class="nav-item" onclick="switchView('panel')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+            Управление
+        </button>
+        <button class="nav-item" onclick="switchView('analytics')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
+            Аналитика
+        </button>
+        
+        <div style="margin-top: 24px; padding-top: 12px; border-top: 1px solid var(--border-subtle);">
+            <div style="font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted); margin-bottom: 8px; padding-left: 12px; font-weight: 700;">Ресурсы</div>
+            <button class="nav-item" onclick="switchView('library')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+                Библиотека знаний
+            </button>
+        </div>
+
+        <div class="sidebar-bottom">
+            <button class="nav-item" onclick="openProjectModal(true)" id="btn-edit-project" style="margin-bottom: 12px;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+                Настройки проекта
+            </button>
+
+            <input type="file" id="import-json-input" style="display:none" onchange="importData(event)">
+            <button class="nav-item" style="color: var(--text-muted); font-size: 12px;" onclick="document.getElementById('import-json-input').click()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+                Загрузить
+            </button>
+
+            <button class="nav-item" style="color: var(--text-muted); font-size: 12px;" onclick="exportData()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+                Экспорт JSON & Отчет
+            </button>
+        </div>
+    </nav>
+
+    <main id="main-content">
+        <div id="view-dashboard" class="view-container active">
+            <div class="top-header">
+                <div>
+                    <div class="breadcrumbs">Проект / <span class="current-p-name">SHIK</span> / Обзор</div>
+                    <h1 class="page-title">Дашборд проекта</h1>
+                </div>
+            </div>
+            <div class="stats-grid">
+                <div class="stat-card"><div id="main-ring"></div><div class="stat-info"><h4>Прогресс</h4><div class="value" id="stat-progress-val">0%</div></div></div>
+                <div class="stat-card"><div class="stat-info"><h4>Выполнено задач</h4><div class="value" id="stat-done-val" style="color: var(--success);">0</div></div></div>
+                <div class="stat-card"><div class="stat-info"><h4>Осталось задач</h4><div class="value" id="stat-left-val">0</div></div></div>
+                <div class="stat-card"><div class="stat-info"><h4>Просрочено</h4><div class="value" id="stat-overdue-val" style="color: var(--danger);">0</div></div></div>
+            </div>
+            <h3 style="margin-bottom: 20px;">Блоки проекта</h3>
+            <div class="blocks-container" id="dash-blocks"></div>
+        </div>
+
+        <div id="view-panel" class="view-container">
+            <div class="top-header">
+                <div>
+                    <div class="breadcrumbs">Проект / <span class="current-p-name">SHIK</span> / Управление</div>
+                    <h1 class="page-title">Управление задачами</h1>
+                </div>
+                <button class="primary-btn" onclick="openBlockModal()">+ Новый блок</button>
+            </div>
+            <div class="controls-bar">
+                <div class="search-box">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                    <input type="text" id="search-input" placeholder="Поиск задач..." oninput="renderPanel()" spellcheck="true" autocorrect="on" autocomplete="on">
+                </div>
+                <div class="filters">
+                    <button class="filter-btn active" onclick="setFilter('all', this)">Все</button>
+                    <button class="filter-btn" onclick="setFilter('active', this)">Активные</button>
+                    <button class="filter-btn" onclick="setFilter('done', this)">Завершенные</button>
+                    <button class="filter-btn" style="color: var(--danger); border-color: rgba(248,81,73,0.3);" onclick="setFilter('overdue', this)">Просроченные</button>
+                </div>
+            </div>
+            <div class="blocks-container" id="panel-blocks"></div>
+        </div>
+
+        <div id="view-analytics" class="view-container">
+            <div class="top-header">
+                <div>
+                    <div class="breadcrumbs">Проект / <span class="current-p-name">SHIK</span> / Аналитика</div>
+                    <h1 class="page-title">Планирование и Активность</h1>
+                </div>
+            </div>
+            <div class="analytic-card" style="margin-bottom: 24px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+                    <h3 style="margin: 0; border: none; padding: 0;">📈 График продуктивности (за последние 60 дней)</h3>
+                </div>
+                <div class="chart-wrapper">
+                    <svg id="productivity-chart" width="100%" height="100%" preserveAspectRatio="none"></svg>
+                    <div id="chart-tooltip" class="chart-tooltip"></div>
+                </div>
+            </div>
+            <div class="grid-2">
+                <div class="analytic-card">
+                    <h3>🎯 Глобальная цель</h3>
+                    <textarea id="global-goal" rows="3" style="width:100%; border:none; background:transparent; resize:none;" placeholder="Опишите главную цель запуска..." oninput="saveSettings()" onblur="saveSettings()" spellcheck="true" autocorrect="on" autocomplete="on"></textarea>
+                </div>
+                <div class="analytic-card">
+                    <h3>🚀 Дата запуска</h3>
+                    <input type="date" id="launch-date" style="width:100%; margin-top: 10px;" onchange="saveSettings()">
+                </div>
+            </div>
+            <div class="grid-2">
+                <div class="analytic-card">
+                    <h3>⚠️ Риски и решения</h3>
+                    <textarea id="risks-text" rows="6" style="width:100%; border:none; background:transparent; resize:none;" placeholder="- Баг с оплатами -> Решение: подключить резервный эквайринг..." oninput="saveSettings()" onblur="saveSettings()" spellcheck="true" autocorrect="on" autocomplete="on"></textarea>
+                </div>
+                <div class="analytic-card">
+                    <h3>🔗 Полезные ссылки</h3>
+                    <textarea id="links-text" rows="6" style="width:100%; border:none; background:transparent; resize:none;" placeholder="- Figma дизайн: https://...&#10;- Документация API: https://..." oninput="saveSettings()" onblur="saveSettings()" spellcheck="true" autocorrect="on" autocomplete="on"></textarea>
+                </div>
+            </div>
+        </div>
+
+        <div id="view-library" class="view-container">
+            <div class="top-header">
+                <div>
+                    <div class="breadcrumbs">Проект / <span class="current-p-name">SHIK</span> / Библиотека знаний</div>
+                    <h1 class="page-title">Библиотека знаний</h1>
+                </div>
+            </div>
+            <div style="margin-bottom: 24px; color: var(--text-muted); font-size: 14px;">
+                Здесь хранятся сохраненные результаты ваших задач. Вы можете в любой момент просмотреть их, изменить название, отредактировать или скачать к себе на устройство.
+            </div>
+            <div class="blocks-container" id="library-blocks"></div>
+        </div>
+
+        <div id="view-workspace" class="view-container">
+            <div class="top-header" style="flex-wrap: wrap;">
+                <div style="flex: 1; min-width: 300px;">
+                    <div class="breadcrumbs">
+                        <a href="javascript:void(0);" onclick="switchView('panel')" style="color:var(--accent);text-decoration:none;">Управление</a> / 
+                        <span id="ws-task-name-crumb" style="color: var(--text-muted);">Задача</span>
+                    </div>
+                    <input type="text" id="ws-task-title-input" class="page-title" style="background:transparent; border:none; color:inherit; width:100%; outline:none; font-family:inherit; padding:0; margin-top:8px;" placeholder="Название документа..." oninput="hasUnsavedChanges=true;" spellcheck="true" autocorrect="on" autocomplete="on" />
+                </div>
+                <button class="primary-btn" onclick="saveWorkspace()">Сохранить результат</button>
+            </div>
+            <div class="ws-task-meta">
+                <div style="font-weight: 600; font-size: 12px; text-transform: uppercase; color: var(--text-muted);">Описание задачи</div>
+                <div class="ws-task-desc" id="ws-task-desc"></div>
+            </div>
+            <div class="workspace-editor-container" style="position: relative;">
+                <div class="editor-toolbar">
+                    <button class="icon-btn" onclick="formatText('bold')" title="Жирный"><b>B</b></button>
+                    <button class="icon-btn" onclick="formatText('italic')" title="Курсив"><i>I</i></button>
+                    <button class="icon-btn" onclick="formatText('underline')" title="Подчеркнутый"><u>U</u></button>
+                    <button class="icon-btn" onclick="formatText('insertUnorderedList')" title="Маркированный список">•</button>
+                    <div style="width: 1px; background: var(--border-focus); margin: 0 4px; height: 20px;"></div>
+                    <button class="icon-btn" onclick="formatText('justifyLeft')" title="По левому краю">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="12" x2="15" y2="12"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+                    </button>
+                    <button class="icon-btn" onclick="formatText('justifyCenter')" title="По центру">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"></line><line x1="6" y1="12" x2="18" y2="12"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+                    </button>
+                    <button class="icon-btn" onclick="formatText('justifyRight')" title="По правому краю">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"></line><line x1="9" y1="12" x2="21" y2="12"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+                    </button>
+                    <div style="width: 1px; background: var(--border-focus); margin: 0 4px; height: 20px;"></div>
+                    <button class="icon-btn" onclick="insertLink()" title="Вставить ссылку">🔗 Ссылка</button>
+                    <button class="icon-btn" onclick="document.getElementById('ws-image-upload').click()" title="Вставить картинку">🖼️ Картинка</button>
+                    <input type="file" id="ws-image-upload" accept="image/*" style="display:none" onchange="insertImage(event)">
+                    <div style="width: 1px; background: var(--border-focus); margin: 0 4px; height: 20px;"></div>
+                    <button class="icon-btn" onclick="insertTable()" title="Вставить таблицу">📊 Таблица</button>
+                    <button class="icon-btn" onclick="addTableRow()" title="Добавить строку">+ Стр</button>
+                    <button class="icon-btn" onclick="addTableColumn()" title="Добавить столбец">+ Стл</button>
+                    <button class="icon-btn" style="color:var(--danger)" onclick="deleteTable()" title="Удалить таблицу">🗑️ Табл</button>
+                </div>
+                <div style="position: relative; flex: 1; display: flex; flex-direction: column;">
+                    <div id="ws-editor" contenteditable="true" class="editor-area" placeholder="Начните писать здесь..." oninput="hasUnsavedChanges=true;" spellcheck="true" autocorrect="on" autocomplete="on"></div>
+                    <div id="img-resizer-overlay" class="img-resizer-overlay">
+                        <div class="img-resizer-handle" id="img-resizer-handle"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div class="modal-overlay" id="modal-project">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 id="m-proj-title">Новый проект</h3>
+                <button class="icon-btn" onclick="closeModals()"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="p-id">
+                <div class="form-group">
+                    <label>Название проекта</label>
+                    <input type="text" id="p-name" placeholder="Название" spellcheck="true" autocorrect="on" autocomplete="on">
+                </div>
+                <div class="form-group">
+                    <label>Логотип проекта (Изображение)</label>
+                    <div class="photo-upload-wrap">
+                        <input type="file" id="p-photo-input" accept="image/*" style="display: none;" onchange="handleProjPhotoUpload(event)">
+                        <button class="photo-btn" type="button" onclick="document.getElementById('p-photo-input').click()">Выбрать фото</button>
+                        <img id="p-photo-preview" class="photo-preview">
+                        <button type="button" class="photo-remove" id="p-photo-remove" onclick="removeProjPhoto()">Удалить</button>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer" style="flex-direction: row; justify-content: space-between; align-items: center;">
+                <div style="display:flex; gap:12px; align-items: center;">
+                    <button class="filter-btn" style="color:var(--danger); border-color:transparent; padding: 0;" id="btn-del-project" onclick="deleteProject()">Удалить</button>
+                    <button class="icon-btn" style="background:var(--bg-surface-hover); color:var(--accent); height:34px; padding:0 12px;" id="btn-share-project" onclick="shareProject()" title="Поделиться ссылкой">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px;"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
+                        Поделиться
+                    </button>
+                </div>
+                <div style="display:flex; gap:12px;">
+                    <button class="filter-btn" onclick="closeModals()">Отмена</button>
+                    <button class="primary-btn" onclick="saveProject()">Сохранить</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="modal-block">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 id="m-block-title">Настройки блока</h3>
+                <button class="icon-btn" onclick="closeModals()"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="b-id">
+                <div class="form-group">
+                    <label>Название блока</label>
+                    <input type="text" id="b-name" placeholder="Например: Маркетинг" spellcheck="true" autocorrect="on" autocomplete="on">
+                </div>
+                <div class="form-group">
+                    <label>Обложка блока (Изображение)</label>
+                    <div class="photo-upload-wrap">
+                        <input type="file" id="b-photo-input" accept="image/*" style="display: none;" onchange="handlePhotoUpload(event)">
+                        <button class="photo-btn" type="button" onclick="document.getElementById('b-photo-input').click()">Выбрать фото</button>
+                        <img id="b-photo-preview" class="photo-preview">
+                        <button type="button" class="photo-remove" id="b-photo-remove" onclick="removePhoto()">Удалить</button>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Цвет (если нет фото)</label>
+                    <div class="color-picker" id="b-colors"></div>
+                </div>
+            </div>
+            <div class="modal-footer" style="flex-direction: row; justify-content: flex-end;">
+                <button class="filter-btn" onclick="closeModals()">Отмена</button>
+                <button class="primary-btn" onclick="saveBlock()">Сохранить</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="modal-task">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 id="m-task-title">Настройки задачи</h3>
+                <button class="icon-btn" onclick="closeModals()"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="t-id">
+                <input type="hidden" id="t-block-id">
+                <div class="form-group">
+                    <label>Название</label>
+                    <input type="text" id="t-name" placeholder="Что нужно сделать?" spellcheck="true" autocorrect="on" autocomplete="on">
+                </div>
+                <div class="form-group">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <label>Описание задачи</label>
+                        <div style="display:flex; gap:8px;">
+                            <button class="photo-btn" type="button" onclick="toggleTaskDescSize()" style="padding: 4px 8px; font-size: 11px;">↕ Размер</button>
+                            <button class="photo-btn" type="button" onclick="document.getElementById('t-photo-input').click()" style="padding: 4px 8px; font-size: 11px;">📷 Фото-референс</button>
+                        </div>
+                    </div>
+                    <input type="file" id="t-photo-input" accept="image/*" style="display: none;" onchange="handleTaskPhotoUpload(event)">
+                    <textarea id="t-desc" rows="4" style="resize: vertical; min-height: 80px; width: 100%; transition: min-height 0.3s ease;" placeholder="Введите подробности задачи..." spellcheck="true" autocorrect="on" autocomplete="on"></textarea>
+                    <div id="t-photo-wrap" style="display: none; align-items: center; gap: 10px; margin-top: 6px;">
+                        <img id="t-photo-preview" style="max-height: 70px; border-radius: 6px; border: 1px solid var(--border-subtle); object-fit: cover;">
+                        <button type="button" class="photo-remove" id="t-photo-remove" onclick="removeTaskPhoto()" style="display: block;">Удалить фото</button>
+                    </div>
+                </div>
+                <div class="grid-2" style="gap: 16px; margin-bottom: 0;">
+                    <div class="form-group">
+                        <label>Приоритет</label>
+                        <select id="t-prio">
+                            <option value="low">Низкий</option>
+                            <option value="medium">Средний</option>
+                            <option value="high">Высокий</option>
+                            <option value="critical">Критический</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Дедлайн</label>
+                        <input type="date" id="t-date">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer" style="flex-direction: row; justify-content: flex-end;">
+                <button class="filter-btn" onclick="closeModals()">Отмена</button>
+                <button class="primary-btn" onclick="saveTaskDetails()">Сохранить настройки</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast-container"></div>
+
+    <script>
+        // === ПЕРЕМЕННЫЕ И ДАННЫЕ ===
+        let hasUnsavedChanges = false;
+        let isSharedMode = false;
+        let lastProgress = 0;
+
+        const colors = ['#5e6ad2', '#2ea043', '#d29922', '#f85149', '#a371f7', '#0969da'];
+        const prioLabels = { low: 'Низкий', medium: 'Средний', high: 'Высокий', critical: 'Критический' };
+        const prioColors = { low: 'var(--success)', medium: 'var(--warning)', high: 'var(--high-prio)', critical: 'var(--critical)' };
+        const prioWeights = { 'critical': 4, 'high': 3, 'medium': 2, 'low': 1 };
+        
+        let selectedColor = colors[0];
+        let currentWorkspaceTaskId = null;
+        let currentWorkspaceBlockId = null;
+
+        const defaultProjectTemplate = {
+            "id": "proj_default",
+            "name": "Мой первый проект",
+            "photo": "",
+            "settings": {"goal":"","launchDate":"","risks":"","links":""},
+            "blocks": []
+        };
+
+        // Безопасная загрузка данных (защита от сбоев localStorage)
+        let state;
+        try {
+            state = JSON.parse(localStorage.getItem('shik_os_data'));
+        } catch (e) {
+            state = null;
+        }
+        
+        if (!state || typeof state !== 'object' || !Array.isArray(state.projects)) {
+            state = {
+                projects: [
+                    {
+                        id: "proj_default",
+                        name: "SHIK Launch",
+                        photo: "",
+                        settings: { goal: "", launchDate: "", risks: "", links: "" },
+                        blocks: []
+                    }
+                ],
+                currentProjectId: "proj_default"
+            };
+            try {
+                localStorage.setItem('shik_os_data', JSON.stringify(state));
+            } catch(e) {
+                console.error("Не удалось сохранить данные", e);
+            }
+        }
+
+        function getCurrentProject() {
+            if (!Array.isArray(state.projects)) state.projects = [];
+            let p = state.projects.find(proj => proj.id === state.currentProjectId);
+            if (!p) {
+                p = state.projects[0];
+                if (!p) {
+                    p = { id: "proj_default", name: "Новый проект", photo: "", settings: {goal:"",launchDate:"",risks:"",links:""}, blocks: [] };
+                    state.projects.push(p);
+                }
+                state.currentProjectId = p.id;
+            }
+            if (!p.settings) p.settings = { goal: "", launchDate: "", risks: "", links: "" };
+            if (!Array.isArray(p.blocks)) p.blocks = [];
+            return p;
+        }
+
+        // === ИНИЦИАЛИЗАЦИЯ ===
+        function init() {
+            try {
+                const savedTheme = localStorage.getItem('shik_theme') || 'dark';
+                if(savedTheme === 'light') applyLightTheme();
+                else {
+                    const txt = document.getElementById('theme-text');
+                    if(txt) txt.innerText = "Ночь";
+                }
+                
+                const urlParams = new URLSearchParams(window.location.search);
+                const sharedPId = urlParams.get('p');
+                
+                if (sharedPId) {
+                    const foundProj = state.projects.find(proj => proj.id === sharedPId);
+                    if (foundProj) {
+                        state.currentProjectId = sharedPId;
+                        isSharedMode = true;
+                        const brandSel = document.getElementById('brand-selector');
+                        if (brandSel) brandSel.style.pointerEvents = 'none';
+                        const brandChevron = document.querySelector('#brand-selector .chevron');
+                        if (brandChevron) brandChevron.style.display = 'none';
+                        const btnEditProj = document.getElementById('btn-edit-project');
+                        if (btnEditProj) btnEditProj.style.display = 'none';
+                    } else {
+                        showToast("Проект по ссылке не найден.", "warning");
+                        window.history.replaceState({}, document.title, window.location.pathname);
+                    }
+                }
+
+                initProjectUI();
+                initEditorFeatures();
+
+                window.addEventListener('beforeunload', (e) => {
+                    if (hasUnsavedChanges) { e.preventDefault(); e.returnValue = ''; }
+                });
+
+                document.addEventListener('click', (e) => {
+                    const dropdown = document.getElementById('project-dropdown');
+                    const selector = document.getElementById('brand-selector');
+                    if (dropdown && dropdown.classList.contains('active') && !selector.contains(e.target)) {
+                        dropdown.classList.remove('active');
+                    }
+                });
+
+                document.querySelectorAll('.modal-overlay').forEach(overlay => {
+                    overlay.addEventListener('mousedown', function(e) {
+                        if (e.target === this) closeModals();
+                    });
+                });
+                
+                switchView('dashboard');
+            } catch (err) {
+                console.error("Критическая ошибка инициализации:", err);
+                const bName = document.getElementById('brand-name');
+                if(bName) bName.innerText = "Ошибка данных";
+                showToast("Произошла ошибка при загрузке. Откройте консоль (F12).", "danger");
+            }
+        }
+
+        function initProjectUI() {
+            const p = getCurrentProject();
+            
+            const goalEl = document.getElementById('global-goal');
+            if(goalEl) goalEl.value = p.settings.goal || '';
+            const launchEl = document.getElementById('launch-date');
+            if(launchEl) launchEl.value = p.settings.launchDate || '';
+            const risksEl = document.getElementById('risks-text');
+            if(risksEl) risksEl.value = p.settings.risks || '';
+            const linksEl = document.getElementById('links-text');
+            if(linksEl) linksEl.value = p.settings.links || '';
+            
+            renderBrandInfo();
+            calcStats();
+            renderDashboard();
+            renderPanel();
+            renderLibrary();
+            if(document.getElementById('view-analytics').classList.contains('active')) renderChart();
+        }
+
+        function saveSettings() {
+            const p = getCurrentProject();
+            const goalEl = document.getElementById('global-goal');
+            const launchEl = document.getElementById('launch-date');
+            const risksEl = document.getElementById('risks-text');
+            const linksEl = document.getElementById('links-text');
+            
+            if(goalEl) p.settings.goal = goalEl.value;
+            if(launchEl) p.settings.launchDate = launchEl.value;
+            if(risksEl) p.settings.risks = risksEl.value;
+            if(linksEl) p.settings.links = linksEl.value;
+            saveData();
+        }
+
+        // === САЙДБАР: ВЫБОР ПРОЕКТА ===
+        function renderBrandInfo() {
+            const p = getCurrentProject();
+            const logoImg = document.getElementById('brand-logo');
+            const logoFallback = document.getElementById('brand-logo-fallback');
+            
+            if (document.getElementById('brand-name')) {
+                document.getElementById('brand-name').innerText = p.name || "Без названия";
+            }
+            document.querySelectorAll('.current-p-name').forEach(el => el.innerText = p.name || "Без названия");
+
+            if (p.photo && p.photo.trim() !== "") {
+                logoImg.src = p.photo;
+                logoImg.style.display = 'block';
+                logoFallback.style.display = 'none';
+            } else {
+                logoImg.style.display = 'none';
+                logoFallback.style.display = 'flex'; 
+                logoFallback.className = 'brand-logo-text';
+                logoFallback.innerText = p.name.charAt(0).toUpperCase();
+            }
+        }
+
+        function toggleProjectMenu(event) {
+            if (isSharedMode) return;
+            const dropdown = document.getElementById('project-dropdown');
+            const list = document.getElementById('project-list');
+            
+            if (dropdown.classList.contains('active')) {
+                dropdown.classList.remove('active');
+                return;
+            }
+            
+            list.innerHTML = '';
+            state.projects.forEach(p => {
+                const isActive = p.id === state.currentProjectId;
+                const photoHtml = (p.photo && p.photo.trim() !== "")
+                    ? `<img src="${p.photo}">` 
+                    : `<span>${p.name.charAt(0).toUpperCase()}</span>`;
+                
+                list.innerHTML += `
+                    <div class="project-item ${isActive ? 'active' : ''}" onclick="switchProject('${p.id}', event)">
+                        <div class="project-item-logo">${photoHtml}</div>
+                        <div class="project-item-name">${p.name}</div>
+                        ${isActive ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>' : ''}
+                    </div>
+                `;
+            });
+            dropdown.classList.add('active');
+        }
+
+        function switchProject(id, event) {
+            event.stopPropagation();
+            const dropdown = document.getElementById('project-dropdown');
+            if (dropdown) dropdown.classList.remove('active');
+            if (state.currentProjectId === id) return;
+            
+            if (hasUnsavedChanges) {
+                if (!confirm('В текущем проекте есть несохраненные изменения в документе. Переключить без сохранения?')) return;
+            }
+            hasUnsavedChanges = false;
+            
+            currentFilter = 'all';
+            const searchInput = document.getElementById('search-input');
+            if(searchInput) searchInput.value = '';
+            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+            const allBtn = document.querySelector('.filter-btn[onclick="setFilter(\'all\', this)"]');
+            if(allBtn) allBtn.classList.add('active');
+            lastProgress = 0; 
+            
+            state.currentProjectId = id;
+            saveData(); 
+            
+            if (document.getElementById('view-workspace').classList.contains('active')) {
+                switchView('dashboard');
+            } else {
+                initProjectUI();
+            }
+        }
+
+        // === МОДАЛКА: СОЗДАНИЕ / РЕДАКТИРОВАНИЕ ПРОЕКТА ===
+        let tempProjPhoto = "";
+        
+        function handleProjPhotoUpload(e) {
+            const file = e.target.files[0];
+            if(!file) return;
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    let w = img.width, h = img.height;
+                    if(w > 150) { h *= 150/w; w = 150; }
+                    if(h > 150) { w *= 150/h; h = 150; }
+                    canvas.width = w; canvas.height = h;
+                    canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+                    tempProjPhoto = canvas.toDataURL('image/jpeg', 0.8);
+                    
+                    document.getElementById('p-photo-preview').src = tempProjPhoto;
+                    document.getElementById('p-photo-preview').style.display = 'block';
+                    document.getElementById('p-photo-remove').style.display = 'block';
+                };
+                img.src = ev.target.result;
+            };
+            reader.readAsDataURL(file);
+            e.target.value = '';
+        }
+        function removeProjPhoto() {
+            tempProjPhoto = "";
+            const pInput = document.getElementById('p-photo-input');
+            if(pInput) pInput.value = "";
+            const pPrev = document.getElementById('p-photo-preview');
+            if(pPrev) pPrev.style.display = 'none';
+            const pRem = document.getElementById('p-photo-remove');
+            if(pRem) pRem.style.display = 'none';
+        }
+
+        function openProjectModal(isEdit = false) {
+            closeModals(); 
+            const dropdown = document.getElementById('project-dropdown');
+            if (dropdown) dropdown.classList.remove('active');
+            removeProjPhoto();
+            
+            if (isEdit) {
+                const p = getCurrentProject();
+                document.getElementById('m-proj-title').innerText = 'Настройки проекта';
+                document.getElementById('p-id').value = p.id;
+                document.getElementById('p-name').value = p.name;
+                document.getElementById('btn-del-project').style.display = 'block';
+                document.getElementById('btn-share-project').style.display = 'flex';
+                
+                if (p.photo && p.photo.trim() !== "") {
+                    tempProjPhoto = p.photo;
+                    document.getElementById('p-photo-preview').src = tempProjPhoto;
+                    document.getElementById('p-photo-preview').style.display = 'block';
+                    document.getElementById('p-photo-remove').style.display = 'block';
+                }
+            } else {
+                document.getElementById('m-proj-title').innerText = 'Новый проект';
+                document.getElementById('p-id').value = '';
+                document.getElementById('p-name').value = '';
+                document.getElementById('btn-del-project').style.display = 'none'; 
+                document.getElementById('btn-share-project').style.display = 'none';
+            }
+            document.getElementById('modal-project').classList.add('active');
+        }
+
+        function saveProject() {
+            const id = document.getElementById('p-id').value;
+            const name = document.getElementById('p-name').value.trim();
+            if(!name) return showToast('Введите название проекта', 'warning');
+            
+            if(id) {
+                const p = state.projects.find(x => x.id === id);
+                p.name = name;
+                p.photo = tempProjPhoto;
+            } else {
+                const newProj = {
+                    id: generateId(),
+                    name: name,
+                    photo: tempProjPhoto,
+                    settings: { goal: "", launchDate: "", risks: "", links: "" },
+                    blocks: [] 
+                };
+                state.projects.push(newProj);
+                state.currentProjectId = newProj.id;
+            }
+            
+            saveData();
+            closeModals();
+            initProjectUI(); 
+        }
+
+        function deleteProject() {
+            if (state.projects.length <= 1) {
+                return showToast("Вы не можете удалить единственный проект в системе.", "warning");
+            }
+            const id = document.getElementById('p-id').value;
+            if (confirm("Вы уверены, что хотите безвозвратно удалить этот проект и все его задачи?")) {
+                state.projects = state.projects.filter(p => p.id !== id);
+                state.currentProjectId = state.projects[0].id;
+                saveData();
+                closeModals();
+                switchView('dashboard');
+                initProjectUI();
+            }
+        }
+
+        function shareProject() {
+            const pId = state.currentProjectId;
+            const baseUrl = window.location.href.split('?')[0];
+            const shareUrl = `${baseUrl}?p=${pId}`;
+            navigator.clipboard.writeText(shareUrl).then(() => {
+                showToast("Ссылка на проект скопирована!", "success");
+            }).catch(err => {
+                showToast("Ошибка копирования. Ссылка: " + shareUrl, "warning");
+            });
+        }
+
+        // === ТЕМА (DARK/LIGHT) ===
+        function toggleTheme() {
+            const current = document.documentElement.getAttribute('data-theme');
+            if(current === 'light') {
+                document.documentElement.removeAttribute('data-theme');
+                localStorage.setItem('shik_theme', 'dark');
+                const txt = document.getElementById('theme-text');
+                if(txt) txt.innerText = "Ночь";
+            } else {
+                applyLightTheme();
+            }
+            if(document.getElementById('view-analytics').classList.contains('active')) setTimeout(renderChart, 300);
+        }
+
+        function applyLightTheme() {
+            document.documentElement.setAttribute('data-theme', 'light');
+            localStorage.setItem('shik_theme', 'light');
+            const txt = document.getElementById('theme-text');
+            if(txt) txt.innerText = "День";
+        }
+
+        function saveData() {
+            const p = getCurrentProject();
+            if (p.blocks) {
+                p.blocks.forEach((b, i) => b.order = i + 1);
+            }
+            try {
+                localStorage.setItem('shik_os_data', JSON.stringify(state));
+            } catch(e) {
+                console.error("Ошибка сохранения", e);
+                showToast("Не удалось сохранить (возможно, переполнено хранилище)", "danger");
+            }
+            calcStats();
+            if(document.getElementById('view-analytics').classList.contains('active')) renderChart();
+        }
+
+        function switchView(view) {
+            if (document.getElementById('view-workspace').classList.contains('active') && view !== 'workspace') {
+                if (hasUnsavedChanges) {
+                    if (!confirm('У вас есть несохраненные изменения. Выйти без сохранения?')) {
+                        return;
+                    }
+                }
+                const overlay = document.getElementById('img-resizer-overlay');
+                if(overlay) overlay.style.display = 'none';
+            }
+            hasUnsavedChanges = false;
+
+            document.querySelectorAll('.view-container').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+            
+            const viewEl = document.getElementById(`view-${view}`);
+            if(viewEl) viewEl.classList.add('active');
+            
+            const btn = document.querySelector(`.nav-item[onclick="switchView('${view}')"]`);
+            if (btn) btn.classList.add('active');
+            
+            if(window.innerWidth <= 768) document.getElementById('sidebar').classList.remove('open');
+            
+            if(view === 'dashboard') renderDashboard();
+            if(view === 'panel') renderPanel();
+            if(view === 'library') renderLibrary();
+            if(view === 'analytics') { setTimeout(renderChart, 50); }
+        }
+
+        // === УТИЛИТЫ ===
+        function generateId() { return Math.random().toString(36).substr(2, 9); }
+        function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); }
+        function showToast(msg, type='info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.innerText = msg;
+            container.appendChild(toast);
+            setTimeout(() => { toast.style.animation = 'fadeOutRight 0.3s forwards'; setTimeout(() => toast.remove(), 300); }, 4000);
+        }
+        function isOverdue(dateStr) { if(!dateStr) return false; const t = new Date(); t.setHours(0,0,0,0); return new Date(dateStr) < t; }
+        function formatDate(dateStr) { if(!dateStr) return ''; return new Date(dateStr).toLocaleDateString('ru-RU', { day: '2-digit', month: 'short' }); }
+
+        function calcStats() {
+            const p = getCurrentProject();
+            let total = 0, done = 0, overdue = 0;
+            p.blocks.forEach(b => {
+                if (Array.isArray(b.tasks)) {
+                    b.tasks.forEach(t => { 
+                        total++; 
+                        if(t.done) done++; 
+                        else if(isOverdue(t.date)) overdue++; 
+                    });
+                }
+            });
+            const percent = total === 0 ? 0 : Math.round((done / total) * 100);
+            
+            const elProg = document.getElementById('stat-progress-val');
+            const elDone = document.getElementById('stat-done-val');
+            const elLeft = document.getElementById('stat-left-val');
+            const elOver = document.getElementById('stat-overdue-val');
+            const elRing = document.getElementById('main-ring');
+            
+            if(elProg) elProg.innerText = `${percent}%`;
+            if(elDone) elDone.innerText = done;
+            if(elLeft) elLeft.innerText = total - done;
+            if(elOver) elOver.innerText = overdue;
+            if(elRing) elRing.innerHTML = getRing(percent, 50, '#5e6ad2');
+
+            if(percent > lastProgress) {
+                if(percent === 50) showToast('🎉 Экватор пройден!', 'success');
+                if(percent === 100 && total > 0) showToast('🚀 ПРОЕКТ ГОТОВ К ЗАПУСКУ!', 'success');
+            }
+            lastProgress = percent;
+        }
+
+        function getRing(percent, size, color) {
+            const r = (size / 2) - 4, c = Math.PI * (r * 2), pct = ((100 - percent) / 100) * c;
+            return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+                <circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="var(--border-subtle)" stroke-width="6"/>
+                <circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="${color}" stroke-width="6" stroke-dasharray="${c}" stroke-dashoffset="${pct}" stroke-linecap="round" transform="rotate(-90 ${size/2} ${size/2})"/>
+            </svg>`;
+        }
+
+        // === DRAG & DROP ===
+        let dragSrcEl = null;
+        function handleDragStart(e) { dragSrcEl = this; e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', this.dataset.id); this.classList.add('dragging'); }
+        function handleDragOver(e) { if (e.preventDefault) e.preventDefault(); return false; }
+        function handleDragEnter(e) { this.classList.add('over'); }
+        function handleDragLeave(e) { this.classList.remove('over'); }
+        function handleDrop(e) {
+            if (e.stopPropagation) e.stopPropagation();
+            if (dragSrcEl !== this) {
+                const p = getCurrentProject();
+                const srcIdx = p.blocks.findIndex(b => b.id === dragSrcEl.dataset.id);
+                const tgtIdx = p.blocks.findIndex(b => b.id === this.dataset.id);
+                const [moved] = p.blocks.splice(srcIdx, 1);
+                p.blocks.splice(tgtIdx, 0, moved);
+                saveData(); renderPanel(); renderDashboard(); renderLibrary();
+            }
+            return false;
+        }
+        function handleDragEnd(e) { this.classList.remove('dragging'); document.querySelectorAll('.block-card').forEach(c => c.classList.remove('over')); }
+
+        // === РЕНДЕР ДАШБОРДА ===
+        function renderDashboard() {
+            const p = getCurrentProject();
+            const container = document.getElementById('dash-blocks');
+            if(!container) return;
+            container.innerHTML = '';
+            
+            p.blocks.sort((a,b)=>(a.order||0)-(b.order||0)).forEach(block => {
+                const total = Array.isArray(block.tasks) ? block.tasks.length : 0;
+                const done = Array.isArray(block.tasks) ? block.tasks.filter(t=>t.done).length : 0;
+                const pct = total === 0 ? 0 : Math.round((done/total)*100);
+                
+                const sortedTasks = [...(Array.isArray(block.tasks) ? block.tasks : [])].sort((a,b) => (prioWeights[b.prio] || 0) - (prioWeights[a.prio] || 0));
+                let tasksHTML = sortedTasks.map(t => createTaskHTML(t, block.id, false)).join('');
+                if(total === 0) tasksHTML = `<div style="padding: 20px; color: var(--text-muted); font-size: 12px; text-align: center;">Нет задач.</div>`;
+
+                const iconStyle = block.photo ? `background: url('${block.photo}') center/cover;` : `background: ${block.color};`;
+                const iconText = block.photo ? '' : block.name.charAt(0);
+
+                container.innerHTML += `
+                    <div class="block-card" id="db-${block.id}">
+                        <div class="block-header" onclick="document.getElementById('db-${block.id}').classList.toggle('open')">
+                            <div class="block-title-area">
+                                <div class="block-icon" style="${iconStyle}">${iconText}</div>
+                                <div>
+                                    <div class="block-title">${block.name}</div>
+                                    <div class="block-meta">
+                                        <span>${done}/${total} задач</span>
+                                        <div class="progress-bar-bg"><div class="progress-bar-fill" style="width: ${pct}%; background: ${block.color};"></div></div>
+                                        <span>${pct}%</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <svg class="chevron" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                        </div>
+                        <div class="block-body-wrapper">
+                            <div class="block-body">${tasksHTML}</div>
+                        </div>
+                    </div>`;
+            });
+        }
+
+        // === РЕНДЕР ПАНЕЛИ ===
+        let currentFilter = 'all';
+        function setFilter(f, el) { currentFilter = f; document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active')); el.classList.add('active'); renderPanel(); }
+        
+        function renderPanel() {
+            const p = getCurrentProject();
+            const container = document.getElementById('panel-blocks');
+            if(!container) return;
+            
+            const openBlocks = Array.from(container.querySelectorAll('.block-card.open')).map(el => el.dataset.id);
+            
+            container.innerHTML = '';
+            const searchQuery = (document.getElementById('search-input')?.value || '').toLowerCase();
+
+            p.blocks.sort((a,b)=>(a.order||0)-(b.order||0)).forEach(block => {
+                let filteredTasks = Array.isArray(block.tasks) ? block.tasks.filter(t => {
+                    const m = (t.name||'').toLowerCase().includes(searchQuery) || (t.desc||'').toLowerCase().includes(searchQuery);
+                    if(!m) return false;
+                    if(currentFilter === 'active') return !t.done;
+                    if(currentFilter === 'done') return t.done;
+                    if(currentFilter === 'overdue') return !t.done && isOverdue(t.date);
+                    return true;
+                }) : [];
+
+                if((searchQuery || currentFilter !== 'all') && filteredTasks.length === 0) return;
+                filteredTasks.sort((a,b) => (a.created || 0) - (b.created || 0));
+                
+                let tasksHTML = filteredTasks.map(t => createTaskHTML(t, block.id, true)).join('');
+                if (filteredTasks.length === 0) tasksHTML = `<div style="padding: 20px; color: var(--text-muted); font-size: 12px; text-align: center;">Нет задач.</div>`;
+                
+                const iconStyle = block.photo ? `background: url('${block.photo}') center/cover; margin-right:8px;` : `display:none;`;
+                const isOpen = openBlocks.includes(block.id) ? 'open' : '';
+
+                container.innerHTML += `
+                    <div class="block-card ${isOpen}" draggable="true" data-id="${block.id}" id="panel-${block.id}" style="border-left: 4px solid ${block.color};">
+                        <div class="block-header" onclick="document.getElementById('panel-${block.id}').classList.toggle('open')">
+                            <div class="block-title-area">
+                                <div class="drag-handle" title="Перетащить" onclick="event.stopPropagation()"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="12" r="1"></circle><circle cx="9" cy="5" r="1"></circle><circle cx="9" cy="19" r="1"></circle><circle cx="15" cy="12" r="1"></circle><circle cx="15" cy="5" r="1"></circle><circle cx="15" cy="19" r="1"></circle></svg></div>
+                                <div class="block-icon" style="width:24px; height:24px; border-radius:6px; ${iconStyle}"></div>
+                                <div class="block-title">${block.name}</div>
+                            </div>
+                            <div style="display:flex; gap:4px; align-items:center;">
+                                <button class="icon-btn" onclick="event.stopPropagation(); openTaskModal(null, '${block.id}')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg></button>
+                                <button class="icon-btn" onclick="event.stopPropagation(); openBlockModal('${block.id}')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg></button>
+                                <button class="icon-btn" style="color:var(--danger)" onclick="event.stopPropagation(); deleteBlock('${block.id}')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button>
+                                <svg class="chevron" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-left: 8px;"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                            </div>
+                        </div>
+                        <div class="block-body-wrapper">
+                            <div class="block-body">${tasksHTML}</div>
+                        </div>
+                    </div>`;
+            });
+
+            container.querySelectorAll('.block-card').forEach(c => {
+                c.addEventListener('dragstart', handleDragStart); c.addEventListener('dragover', handleDragOver);
+                c.addEventListener('dragenter', handleDragEnter); c.addEventListener('dragleave', handleDragLeave);
+                c.addEventListener('drop', handleDrop); c.addEventListener('dragend', handleDragEnd);
+            });
+        }
+
+        function createTaskHTML(t, blockId, showControls) {
+            const overdue = !t.done && isOverdue(t.date);
+            const prioColor = prioColors[t.prio] || 'var(--success)';
+            const prioLabel = prioLabels[t.prio] || 'Нет приоритета';
+            
+            let actions = showControls ? `
+                <div class="task-actions">
+                    <button class="icon-btn" title="Настройки задачи" onclick="event.stopPropagation(); openTaskModal('${t.id}', '${blockId}')">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                    </button>
+                    <button class="icon-btn" style="color:var(--danger)" title="Удалить задачу" onclick="event.stopPropagation(); deleteTask('${t.id}', '${blockId}')">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                    </button>
+                </div>` : '';
+                
+            const photoThumb = '';
+
+            return `
+                <div class="task-item ${t.done ? 'completed' : ''}" id="t-el-${t.id}">
+                    <div class="checkbox" onclick="event.stopPropagation(); toggleTask('${t.id}', '${blockId}')">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                    </div>
+                    ${photoThumb}
+                    <div class="task-content" onclick="openWorkspace('${t.id}', '${blockId}')" style="cursor:pointer;" title="Открыть рабочую область">
+                        <div class="task-name" style="display: flex; align-items: center; gap: 8px;">
+                            <span class="flag-tooltip" style="color: ${prioColor}" data-tooltip="${prioLabel}">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path><line x1="4" y1="22" x2="4" y2="15"></line></svg>
+                            </span>
+                            ${t.name}
+                        </div>
+                        ${t.date ? `
+                        <div class="task-badges">
+                            <span class="badge badge-date ${overdue ? 'overdue' : ''}">📅 ${formatDate(t.date)}</span>
+                        </div>` : ''}
+                    </div>
+                    ${actions}
+                </div>`;
+        }
+
+        // === ДЕЙСТВИЯ ЗАДАЧ ===
+        function toggleTask(tId, bId) {
+            const p = getCurrentProject();
+            const b = p.blocks.find(x => x.id === bId);
+            if (!b || !Array.isArray(b.tasks)) return;
+            const t = b.tasks.find(x => x.id === tId);
+            if (!t) return;
+            t.done = !t.done;
+            if(t.done) { t.completedAt = Date.now(); showToast('Задача выполнена!', 'success'); } 
+            else { delete t.completedAt; }
+            saveData(); renderDashboard(); renderPanel(); renderLibrary();
+        }
+        function deleteBlock(id) { if(confirm('Удалить блок?')) { const p = getCurrentProject(); p.blocks = p.blocks.filter(b => b.id !== id); saveData(); renderDashboard(); renderPanel(); renderLibrary(); } }
+        function deleteTask(tId, bId) { if(confirm('Удалить задачу?')) { const p = getCurrentProject(); const b = p.blocks.find(x => x.id === bId); if(b && Array.isArray(b.tasks)){ b.tasks = b.tasks.filter(t => t.id !== tId); saveData(); renderDashboard(); renderPanel(); renderLibrary(); } } }
+
+        // === ФОТО БЛОКА И ЗАДАЧИ ===
+        let tempPhoto = "";
+        function handlePhotoUpload(e) {
+            const file = e.target.files[0];
+            if(!file) return;
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    let w = img.width, h = img.height;
+                    if(w > 150) { h *= 150/w; w = 150; }
+                    if(h > 150) { w *= 150/h; h = 150; }
+                    canvas.width = w; canvas.height = h;
+                    canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+                    tempPhoto = canvas.toDataURL('image/jpeg', 0.8);
+                    
+                    document.getElementById('b-photo-preview').src = tempPhoto;
+                    document.getElementById('b-photo-preview').style.display = 'block';
+                    document.getElementById('b-photo-remove').style.display = 'block';
+                };
+                img.src = ev.target.result;
+            };
+            reader.readAsDataURL(file);
+            e.target.value = '';
+        }
+        function removePhoto() {
+            tempPhoto = "";
+            const bInput = document.getElementById('b-photo-input');
+            if(bInput) bInput.value = "";
+            const bPrev = document.getElementById('b-photo-preview');
+            if(bPrev) bPrev.style.display = 'none';
+            const bRem = document.getElementById('b-photo-remove');
+            if(bRem) bRem.style.display = 'none';
+        }
+
+        let tempTaskPhoto = "";
+        function handleTaskPhotoUpload(e) {
+            const file = e.target.files[0];
+            if(!file) return;
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    let w = img.width, h = img.height;
+                    if(w > 400) { h *= 400/w; w = 400; }
+                    if(h > 400) { w *= 400/h; h = 400; }
+                    canvas.width = w; canvas.height = h;
+                    canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+                    tempTaskPhoto = canvas.toDataURL('image/jpeg', 0.8);
+                    
+                    document.getElementById('t-photo-preview').src = tempTaskPhoto;
+                    document.getElementById('t-photo-wrap').style.display = 'flex';
+                };
+                img.src = ev.target.result;
+            };
+            reader.readAsDataURL(file);
+            e.target.value = '';
+        }
+        function removeTaskPhoto() {
+            tempTaskPhoto = "";
+            const tInput = document.getElementById('t-photo-input');
+            if(tInput) tInput.value = "";
+            const tWrap = document.getElementById('t-photo-wrap');
+            if(tWrap) tWrap.style.display = 'none';
+        }
+
+        // === МОДАЛКИ ===
+        function closeModals() { document.querySelectorAll('.modal-overlay').forEach(el => el.classList.remove('active')); }
+        
+        function toggleTaskDescSize() {
+            const t = document.getElementById('t-desc');
+            if(t) t.classList.toggle('expanded');
+        }
+
+        function openBlockModal(id = null) {
+            const colorContainer = document.getElementById('b-colors');
+            if(colorContainer) colorContainer.innerHTML = colors.map(c => `<div class="color-dot" style="background:${c}" onclick="selectColor(this, '${c}')"></div>`).join('');
+            removePhoto(); 
+
+            if(id) {
+                const p = getCurrentProject();
+                const b = p.blocks.find(x => x.id === id);
+                if(b) {
+                    document.getElementById('m-block-title').innerText = 'Редактировать блок';
+                    document.getElementById('b-id').value = b.id;
+                    document.getElementById('b-name').value = b.name;
+                    selectColor(colorContainer.children[colors.indexOf(b.color)] || colorContainer.children[0], b.color);
+                    if(b.photo) {
+                        tempPhoto = b.photo;
+                        document.getElementById('b-photo-preview').src = tempPhoto;
+                        document.getElementById('b-photo-preview').style.display = 'block';
+                        document.getElementById('b-photo-remove').style.display = 'block';
+                    }
+                }
+            } else {
+                document.getElementById('m-block-title').innerText = 'Новый блок';
+                document.getElementById('b-id').value = '';
+                document.getElementById('b-name').value = '';
+                if(colorContainer) selectColor(colorContainer.children[0], colors[0]);
+            }
+            document.getElementById('modal-block').classList.add('active');
+        }
+
+        function selectColor(el, color) { document.querySelectorAll('.color-dot').forEach(d => d.classList.remove('active')); el.classList.add('active'); selectedColor = color; }
+
+        function saveBlock() {
+            const p = getCurrentProject();
+            const id = document.getElementById('b-id').value, name = document.getElementById('b-name').value.trim();
+            if(!name) return showToast('Введите название блока', 'warning');
+            if(id) {
+                const b = p.blocks.find(x => x.id === id);
+                if(b) {
+                    b.name = name; b.color = selectedColor; b.photo = tempPhoto;
+                }
+            } else {
+                p.blocks.push({ id: generateId(), name, color: selectedColor, photo: tempPhoto, order: p.blocks.length + 1, tasks: [], created: Date.now() });
+            }
+            saveData(); closeModals(); renderDashboard(); renderPanel(); renderLibrary();
+        }
+
+        function openTaskModal(tId = null, bId) {
+            const tBlockEl = document.getElementById('t-block-id');
+            if(tBlockEl) tBlockEl.value = bId;
+            removeTaskPhoto();
+            const tDesc = document.getElementById('t-desc');
+            if(tDesc) tDesc.classList.remove('expanded');
+
+            if(tId) {
+                const p = getCurrentProject();
+                const b = p.blocks.find(x => x.id === bId);
+                if(b) {
+                    const t = b.tasks.find(x => x.id === tId);
+                    if(t) {
+                        document.getElementById('m-task-title').innerText = 'Настройки задачи';
+                        document.getElementById('t-id').value = t.id; 
+                        document.getElementById('t-name').value = t.name;
+                        document.getElementById('t-desc').value = t.desc || ''; 
+                        document.getElementById('t-prio').value = t.prio;
+                        document.getElementById('t-date').value = t.date || '';
+                        if(t.photo) {
+                            tempTaskPhoto = t.photo;
+                            document.getElementById('t-photo-preview').src = tempTaskPhoto;
+                            document.getElementById('t-photo-wrap').style.display = 'flex';
+                        }
+                    }
+                }
+            } else {
+                document.getElementById('m-task-title').innerText = 'Новая задача';
+                document.getElementById('t-id').value = ''; 
+                document.getElementById('t-name').value = '';
+                document.getElementById('t-desc').value = ''; 
+                document.getElementById('t-prio').value = 'medium';
+                document.getElementById('t-date').value = '';
+            }
+            document.getElementById('modal-task').classList.add('active');
+        }
+
+        function saveTaskDetails() {
+            const p = getCurrentProject();
+            const bId = document.getElementById('t-block-id').value, tId = document.getElementById('t-id').value, name = document.getElementById('t-name').value.trim();
+            if(!name) return showToast('Введите название', 'warning');
+            const b = p.blocks.find(x => x.id === bId);
+            if(!b) return;
+            if(!Array.isArray(b.tasks)) b.tasks = [];
+            const taskData = { 
+                name, 
+                desc: document.getElementById('t-desc').value, 
+                prio: document.getElementById('t-prio').value, 
+                date: document.getElementById('t-date').value,
+                photo: tempTaskPhoto
+            };
+            
+            if(tId) {
+                Object.assign(b.tasks.find(x => x.id === tId), taskData);
+            } else {
+                b.tasks.push({ id: generateId(), ...taskData, result: '', done: false, created: Date.now() });
+            }
+            
+            saveData(); closeModals(); renderDashboard(); renderPanel(); renderLibrary();
+        }
+
+        // === РАБОЧАЯ ОБЛАСТЬ (СТРАНИЦА ЗАДАЧИ) ===
+        function openWorkspace(tId, bId) {
+            hasUnsavedChanges = false;
+            currentWorkspaceTaskId = tId;
+            currentWorkspaceBlockId = bId;
+            
+            const p = getCurrentProject();
+            const b = p.blocks.find(x => x.id === bId);
+            if (!b) return;
+            const t = b.tasks.find(x => x.id === tId);
+            if (!t) return;
+            
+            document.getElementById('ws-task-title-input').value = t.docName || t.name;
+            document.getElementById('ws-task-name-crumb').innerText = t.name;
+            
+            let descHtml = t.desc || 'Описание отсутствует.';
+            if (t.photo) {
+                descHtml += `<br><img src="${t.photo}" style="max-width: 200px; border-radius: 6px; margin-top: 8px; border: 1px solid var(--border-subtle);">`;
+            }
+            document.getElementById('ws-task-desc').innerHTML = descHtml;
+            
+            document.getElementById('ws-editor').innerHTML = t.result || '';
+            
+            const overlay = document.getElementById('img-resizer-overlay');
+            if(overlay) overlay.style.display = 'none';
+            switchView('workspace');
+        }
+
+        function saveWorkspace() {
+            if(!currentWorkspaceTaskId || !currentWorkspaceBlockId) return;
+            const p = getCurrentProject();
+            const b = p.blocks.find(x => x.id === currentWorkspaceBlockId);
+            if (!b) return;
+            const t = b.tasks.find(x => x.id === currentWorkspaceTaskId);
+            if (!t) return;
+            
+            const newName = document.getElementById('ws-task-title-input').value.trim();
+            t.docName = newName || t.name;
+
+            document.querySelectorAll('#ws-editor img.resizing-active').forEach(img => img.classList.remove('resizing-active'));
+            const overlay = document.getElementById('img-resizer-overlay');
+            if(overlay) overlay.style.display = 'none';
+            
+            t.result = document.getElementById('ws-editor').innerHTML;
+            t.updatedAt = Date.now();
+            
+            saveData();
+            hasUnsavedChanges = false;
+            showToast('Результат успешно сохранен в Библиотеке знаний!', 'success');
+            
+            renderLibrary(); 
+            renderPanel(); 
+            renderDashboard();
+        }
+
+        // === WYSIWYG РЕДАКТОР & ИНСТРУМЕНТЫ ===
+        function formatText(cmd, value = null) {
+            document.execCommand(cmd, false, value);
+            hasUnsavedChanges = true;
+        }
+
+        function insertLink() {
+            const url = prompt('Введите URL ссылки:');
+            if (url) formatText('createLink', url);
+        }
+
+        function insertImage(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(ev) {
+                formatText('insertImage', ev.target.result);
+            };
+            reader.readAsDataURL(file);
+            e.target.value = '';
+        }
+
+        function insertTable() {
+            const html = `
+                <table>
+                    <thead>
+                        <tr><th>Заголовок 1</th><th>Заголовок 2</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>Ячейка 1</td><td>Ячейка 2</td></tr>
+                        <tr><td>Ячейка 3</td><td>Ячейка 4</td></tr>
+                    </tbody>
+                </table><p><br></p>`;
+            formatText('insertHTML', html);
+        }
+
+        function addTableRow() {
+            const sel = window.getSelection();
+            if (!sel.rangeCount) return;
+            let cell = sel.anchorNode;
+            while (cell && cell.nodeName !== 'TD' && cell.nodeName !== 'TH') cell = cell.parentNode;
+            if (!cell) return showToast('Поместите курсор внутрь таблицы', 'warning');
+            const row = cell.parentNode;
+            const newRow = row.cloneNode(true);
+            Array.from(newRow.cells).forEach(c => c.innerHTML = '...');
+            row.parentNode.insertBefore(newRow, row.nextSibling);
+            hasUnsavedChanges = true;
+        }
+
+        function addTableColumn() {
+            const sel = window.getSelection();
+            if (!sel.rangeCount) return;
+            let cell = sel.anchorNode;
+            while (cell && cell.nodeName !== 'TD' && cell.nodeName !== 'TH') cell = cell.parentNode;
+            if (!cell) return showToast('Поместите курсор внутрь таблицы', 'warning');
+            const colIndex = cell.cellIndex;
+            const table = cell.closest('table');
+            Array.from(table.rows).forEach(row => {
+                const newCell = row.cells[colIndex].cloneNode(true);
+                newCell.innerHTML = '...';
+                row.insertBefore(newCell, row.cells[colIndex].nextSibling);
+            });
+            hasUnsavedChanges = true;
+        }
+
+        function deleteTable() {
+            const sel = window.getSelection();
+            if (!sel.rangeCount) return;
+            let cell = sel.anchorNode;
+            while (cell && cell.nodeName !== 'TD' && cell.nodeName !== 'TH') cell = cell.parentNode;
+            if (!cell) return showToast('Поместите курсор внутрь таблицы', 'warning');
+            const table = cell.closest('table');
+            if (table) table.remove();
+            hasUnsavedChanges = true;
+        }
+
+        function initEditorFeatures() {
+            const editor = document.getElementById('ws-editor');
+            if (!editor) return;
+            const overlay = document.getElementById('img-resizer-overlay');
+            const handle = document.getElementById('img-resizer-handle');
+            if (!overlay || !handle) return;
+
+            let currentImg = null;
+            let isResizing = false;
+            let startX, startY, startWidth, startHeight;
+
+            function updateOverlayPosition() {
+                if (!currentImg) return;
+                const rect = currentImg.getBoundingClientRect();
+                const editorRect = editor.getBoundingClientRect();
+                
+                overlay.style.left = (rect.left - editorRect.left) + 'px';
+                overlay.style.top = (rect.top - editorRect.top + editor.scrollTop) + 'px';
+                overlay.style.width = rect.width + 'px';
+                overlay.style.height = rect.height + 'px';
+            }
+
+            editor.addEventListener('click', (e) => {
+                if (e.target.tagName === 'IMG') {
+                    currentImg = e.target;
+                    currentImg.classList.add('resizing-active');
+                    overlay.style.display = 'block';
+                    updateOverlayPosition();
+                } else {
+                    if (currentImg) {
+                        currentImg.classList.remove('resizing-active');
+                        currentImg = null;
+                        overlay.style.display = 'none';
+                    }
+                }
+            });
+
+            handle.addEventListener('mousedown', (e) => {
+                if (!currentImg) return;
+                e.preventDefault();
+                e.stopPropagation();
+                isResizing = true;
+                startX = e.clientX;
+                startY = e.clientY;
+                startWidth = currentImg.offsetWidth;
+                startHeight = currentImg.offsetHeight;
+
+                const moveHandler = (ev) => {
+                    if (!isResizing || !currentImg) return;
+                    const newWidth = Math.max(50, startWidth + (ev.clientX - startX));
+                    const aspectRatio = startHeight / startWidth;
+                    const newHeight = newWidth * aspectRatio;
+                    
+                    currentImg.style.width = newWidth + 'px';
+                    currentImg.style.height = newHeight + 'px';
+                    currentImg.style.maxWidth = 'none';
+                    currentImg.setAttribute('width', newWidth);
+                    currentImg.setAttribute('height', newHeight);
+                    
+                    updateOverlayPosition();
+                };
+
+                const upHandler = () => {
+                    isResizing = false;
+                    document.removeEventListener('mousemove', moveHandler);
+                    document.removeEventListener('mouseup', upHandler);
+                    hasUnsavedChanges = true;
+                };
+
+                document.addEventListener('mousemove', moveHandler);
+                document.addEventListener('mouseup', upHandler);
+            });
+
+            editor.addEventListener('scroll', () => {
+                if (currentImg) updateOverlayPosition();
+            });
+
+            editor.addEventListener('paste', function(e) {
+                e.preventDefault();
+                let html = (e.clipboardData || window.clipboardData).getData('text/html');
+                let text = (e.clipboardData || window.clipboardData).getData('text/plain');
+
+                if (html) {
+                    let doc = new DOMParser().parseFromString(html, 'text/html');
+                    doc.querySelectorAll('*').forEach(el => {
+                        el.style.backgroundColor = '';
+                        el.style.background = '';
+                        el.style.color = '';
+                    });
+                    document.execCommand('insertHTML', false, doc.body.innerHTML);
+                } else if (text) {
+                    document.execCommand('insertText', false, text);
+                }
+                hasUnsavedChanges = true;
+            });
+        }
+
+        // === БИБЛИОТЕКА ЗНАНИЙ ===
+        function renderLibrary() {
+            const p = getCurrentProject();
+            const container = document.getElementById('library-blocks');
+            if (!container) return;
+            container.innerHTML = '';
+
+            let docsCount = 0;
+            p.blocks.forEach(block => {
+                const docsTasks = Array.isArray(block.tasks) ? block.tasks.filter(t => t.result && t.result.trim() !== '') : [];
+                if (docsTasks.length === 0) return;
+
+                docsCount += docsTasks.length;
+                let docsHTML = docsTasks.map(t => `
+                    <div class="library-doc">
+                        <div class="library-doc-info" onclick="openWorkspace('${t.id}', '${block.id}')">
+                            <span class="library-doc-icon">📄</span>
+                            <div>
+                                <div class="library-doc-title">${t.docName || t.name}</div>
+                                <div style="font-size:11px; color:var(--text-muted);">Задача: ${t.name} • Обновлено: ${t.updatedAt ? new Date(t.updatedAt).toLocaleDateString() : 'недавно'}</div>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+
+                container.innerHTML += `
+                    <div class="block-card open" style="border-left: 4px solid ${block.color};">
+                        <div class="block-header">
+                            <div class="block-title-area">
+                                <div class="block-title">${block.name}</div>
+                            </div>
+                        </div>
+                        <div class="block-body-wrapper">
+                            <div class="block-body">${docsHTML}</div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            if (docsCount === 0) {
+                container.innerHTML = `<div style="padding: 40px; text-align: center; color: var(--text-muted);">В Библиотеке знаний пока нет документов. Выполняйте задачи и сохраняйте их результаты!</div>`;
+            }
+        }
+
+        // === АНАЛИТИКА & ГРАФИК ПРОДУКТИВНОСТИ (60 дней) ===
+        function renderChart() {
+            const svg = document.getElementById('productivity-chart');
+            const tooltip = document.getElementById('chart-tooltip');
+            if(!svg || !tooltip) return;
+            svg.innerHTML = '';
+
+            const p = getCurrentProject();
+            const daysCount = 60; 
+            const today = new Date();
+            today.setHours(23,59,59,999);
+
+            const dailyStats = [];
+            for (let i = daysCount - 1; i >= 0; i--) {
+                const d = new Date(today);
+                d.setDate(d.getDate() - i);
+                d.setHours(0,0,0,0);
+                
+                const nextD = new Date(d);
+                nextD.setDate(nextD.getDate() + 1);
+
+                let doneCnt = 0;
+                let createdCnt = 0;
+                let createdBlocksCnt = 0;
+
+                p.blocks.forEach(b => {
+                    if (b.created && b.created >= d.getTime() && b.created < nextD.getTime()) {
+                        createdBlocksCnt++;
+                    }
+                    if (Array.isArray(b.tasks)) {
+                        b.tasks.forEach(t => {
+                            if (t.created && t.created >= d.getTime() && t.created < nextD.getTime()) {
+                                createdCnt++;
+                            }
+                            if (t.done && t.completedAt && t.completedAt >= d.getTime() && t.completedAt < nextD.getTime()) {
+                                doneCnt++;
+                            }
+                        });
+                    }
+                });
+
+                const activityScore = (createdCnt * 1) + (doneCnt * 2) + (createdBlocksCnt * 2);
+                dailyStats.push({ dateStr: d.toLocaleDateString('ru-RU', { day: '2-digit', month: 'short' }), doneCnt, createdCnt, activityScore });
+            }
+
+            const maxScore = Math.max(...dailyStats.map(s => s.activityScore), 5);
+            const width = svg.clientWidth || 800;
+            const height = svg.clientHeight || 260;
+            const padding = 30;
+            const stepX = (width - padding * 2) / (daysCount - 1);
+
+            let points = '';
+            dailyStats.forEach((stat, idx) => {
+                const x = padding + idx * stepX;
+                const y = height - padding - (stat.activityScore / maxScore) * (height - padding * 2);
+                points += `${x},${y} `;
+            });
+
+            for (let i = 0; i <= 4; i++) {
+                const y = padding + (height - padding * 2) * (i / 4);
+                const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                line.setAttribute('x1', padding); line.setAttribute('y1', y); line.setAttribute('x2', width - padding); line.setAttribute('y2', y);
+                line.setAttribute('stroke', 'var(--border-subtle)'); line.setAttribute('stroke-dasharray', '4');
+                svg.appendChild(line);
+            }
+
+            const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+            polygon.setAttribute('points', `${padding},${height - padding} ${points.trim()} ${width - padding},${height - padding}`);
+            polygon.setAttribute('fill', 'var(--accent)');
+            polygon.setAttribute('fill-opacity', '0.15');
+            polygon.setAttribute('stroke', 'none');
+            svg.appendChild(polygon);
+
+            const polyline = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+            polyline.setAttribute('fill', 'none');
+            polyline.setAttribute('stroke', 'var(--accent)');
+            polyline.setAttribute('stroke-width', '3');
+            polyline.setAttribute('points', points.trim());
+            svg.appendChild(polyline);
+
+            dailyStats.forEach((stat, idx) => {
+                const x = padding + idx * stepX;
+                const y = height - padding - (stat.activityScore / maxScore) * (height - padding * 2);
+
+                const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                circle.setAttribute('cx', x); circle.setAttribute('cy', y);
+                circle.setAttribute('r', stat.activityScore > 0 ? '5' : '3');
+                circle.style.fill = 'var(--accent)'; 
+                circle.style.cursor = 'pointer';
+                circle.style.transition = 'r 0.2s, stroke 0.2s';
+
+                circle.addEventListener('mouseenter', (e) => {
+                    circle.setAttribute('r', '7');
+                    circle.style.stroke = '#ffffff';
+                    circle.style.strokeWidth = '2';
+                    tooltip.innerHTML = `
+                        <strong>${stat.dateStr}</strong><br>
+                        Создано задач: ${stat.createdCnt}<br>
+                        Сделано задач: ${stat.doneCnt}
+                    `;
+                    tooltip.classList.add('visible');
+                    tooltip.style.left = `${x}px`; tooltip.style.top = `${y}px`;
+                });
+
+                circle.addEventListener('mouseleave', () => {
+                    circle.setAttribute('r', stat.activityScore > 0 ? '5' : '3');
+                    circle.style.stroke = 'none';
+                    tooltip.classList.remove('visible');
+                });
+
+                svg.appendChild(circle);
+            });
+        }
+
+        // === ЭКСПОРТ И ИМПОРТ ДАННЫХ ===
+        function exportData() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state, null, 2));
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", `shik_os_export_${Date.now()}.json`);
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+            showToast('Файл экспортирован!', 'success');
+        }
+
+        function importData(event) {
+            const input = event.target;
+            const file = input.files[0];
+            if (!file) {
+                showToast("Файл не выбран", "warning");
+                return;
+            }
+            showToast("Читаю файл...", "info");
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    let text = e.target.result;
+                    const jsonStart = text.indexOf('{');
+                    if (jsonStart > 0) {
+                        text = text.substring(jsonStart);
+                    }
+                    const data = JSON.parse(text);
+                    if (data && Array.isArray(data.projects)) {
+                        localStorage.setItem('shik_os_data', JSON.stringify(data));
+                        showToast('Данные загружены! Перезагрузка...', 'success');
+                        setTimeout(() => location.reload(), 1500);
+                    } else {
+                        showToast('В файле нет проектов. Это не бэкап.', 'warning');
+                    }
+                } catch (err) {
+                    showToast('Ошибка JSON: ' + err.message, 'danger');
+                    console.error("Import Error:", err);
+                }
+            };
+            reader.onerror = function() {
+                showToast('Ошибка чтения файла', 'danger');
+            };
+            reader.readAsText(file);
+            input.value = ''; 
+        }
+
+        // Запуск системы
+        window.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
